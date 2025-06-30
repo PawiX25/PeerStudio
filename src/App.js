@@ -124,7 +124,7 @@ function App() {
     if (isRecording) {
       setIsRecording(false);
       if (activeInstrumentTab === 'Piano') {
-        synthesizePianoRecording();
+        synthesizePianoRecording(recordedNotes.current);
       }
     } else {
       recordedNotes.current = [];
@@ -154,19 +154,30 @@ function App() {
     }
   };
 
-  const synthesizePianoRecording = async () => {
-    if (recordedNotes.current.length === 0) return;
+  const synthesizePianoRecording = async (recording, skipBroadcast = false, clipId = null) => {
+    if (!recording || recording.length === 0) return;
 
-    const recordingDuration = recordedNotes.current.reduce((max, note) => Math.max(max, note.time + note.duration), 0) + 0.5;
+    const recordingDuration = recording.reduce((max, note) => Math.max(max, note.time + note.duration), 0) + 0.5;
 
-    const buffer = await Tone.Offline(async (transport) => {
+    const buffer = await Tone.Offline(async ({ transport }) => {
       const synth = new Tone.PolySynth(Tone.Synth).toDestination();
       new Tone.Part((time, value) => {
         synth.triggerAttackRelease(Tone.Midi(value.midi).toFrequency(), value.duration, time, value.velocity);
-      }, recordedNotes.current).start(0);
+      }, recording).start(0);
+      transport.start();
     }, recordingDuration);
 
-    addBufferToTrack(buffer, 'Synth');
+    const resolvedClipId = clipId || generateId();
+    addBufferToTrack(buffer, 'Synth', resolvedClipId);
+
+    if (!skipBroadcast) {
+      broadcastMessage({ type: 'pianoRecording', recording, clipId: resolvedClipId });
+    }
+  };
+  const handlePianoExport = (recording) => {
+    const validRecording = recording.filter(note => note.duration > 0);
+    if (validRecording.length === 0) return;
+    synthesizePianoRecording(validRecording, true);
   };
 
   const synthesizeSequencerPattern = async (pattern, skipBroadcast = false, clipId = null) => {
@@ -246,25 +257,47 @@ function App() {
     player.sync().start(0);
   };
 
-  const handleClipMove = (trackName, clipId, newLeft) => {
-    setTracks((prevTracks) =>
-      prevTracks.map((t) => {
-        if (t.name === trackName) {
-          const newClips = t.clips.map((c) => {
-            if (c.id === clipId) {
-              c.player.unsync();
-              c.player.sync().start(newLeft / 100);
-              return { ...c, left: newLeft };
-            }
-            return c;
-          });
-          return { ...t, clips: newClips };
-        }
-        return t;
-      })
-    );
+  const handleClipDrop = (clipId, sourceTrackId, destinationTrackId, newLeft) => {
+    setTracks(prevTracks => {
+      let clipToMove = null;
+      let newTracks = [...prevTracks];
 
-    broadcastMessage({ type: 'clipMove', trackName, clipId, left: newLeft });
+      const sourceTrackIndex = newTracks.findIndex(t => t.id === sourceTrackId);
+      if (sourceTrackIndex !== -1) {
+        const sourceTrack = newTracks[sourceTrackIndex];
+        clipToMove = sourceTrack.clips.find(c => c.id === clipId);
+        if (clipToMove) {
+          newTracks[sourceTrackIndex] = {
+            ...sourceTrack,
+            clips: sourceTrack.clips.filter(c => c.id !== clipId),
+          };
+        }
+      }
+
+      if (!clipToMove) return prevTracks;
+
+      clipToMove.left = newLeft;
+      clipToMove.player.unsync();
+      clipToMove.player.sync().start(newLeft / 100);
+
+      const destinationTrackIndex = newTracks.findIndex(t => t.id === destinationTrackId);
+      if (destinationTrackIndex !== -1) {
+        const destinationTrack = newTracks[destinationTrackIndex];
+        newTracks[destinationTrackIndex] = {
+          ...destinationTrack,
+          clips: [...destinationTrack.clips, clipToMove],
+        };
+      } else {
+        newTracks[sourceTrackIndex].clips.push(clipToMove);
+      }
+
+      return newTracks;
+    });
+
+    const destinationTrack = tracks.find(t => t.id === destinationTrackId);
+    if (destinationTrack) {
+      broadcastMessage({ type: 'clipMove', trackName: destinationTrack.name, clipId, left: newLeft });
+    }
   };
 
   return (
@@ -281,10 +314,10 @@ function App() {
         isConnected={isConnected}
       />
       <div className="flex flex-grow overflow-hidden">
-        <Sidebar onAddTrack={() => addTrack()} tracks={tracks} />
+        <Sidebar onAddTrack={() => addTrack()} tracks={tracks} setTracks={setTracks} />
         <div className="flex-grow flex flex-col overflow-hidden">
           <div className="flex-grow">
-            <Timeline tracks={tracks} setTracks={setTracks} timelineChannel={timelineChannel} onClipMove={handleClipMove} />
+            <Timeline tracks={tracks} setTracks={setTracks} timelineChannel={timelineChannel} onClipDrop={handleClipDrop} />
           </div>
           <div className="flex-shrink-0 bg-bg-medium">
             <Tabs activeTab={activeInstrumentTab} onTabClick={setActiveInstrumentTab}>
@@ -296,7 +329,7 @@ function App() {
                 />
               </Tab>
               <Tab label="Piano">
-                <Piano onNoteDown={handleNoteDown} onNoteUp={handleNoteUp} />
+                <Piano onExport={handlePianoExport} />
               </Tab>
             </Tabs>
           </div>

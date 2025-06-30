@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import * as Tone from 'tone';
 import Clip from './Clip';
 import generateId from '../utils/generateId';
@@ -12,7 +12,8 @@ const clipColors = [
   'bg-pink-400',
 ];
 
-const Track = ({ track, setTracks, timelineChannel, onClipMove }) => {
+const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop }) => {
+const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleFileChange = async (event) => {
@@ -65,10 +66,31 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove }) => {
     }
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const clipId = e.dataTransfer.getData('clipId');
+    const sourceTrackId = e.dataTransfer.getData('sourceTrackId');
+    onClipDrop(clipId, sourceTrackId, track.id);
+  };
+
   return (
     <div
-        className="relative flex-grow h-24 bg-bg-medium rounded-lg border border-transparent hover:border-accent/50"
+        className={`relative flex-grow h-24 bg-bg-medium rounded-lg border-2 ${isDragOver ? 'border-accent' : 'border-transparent hover:border-accent/50'}`}
         onContextMenu={handleContextMenu}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <input
             type="file"
@@ -89,4 +111,4 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove }) => {
   );
 };
 
-export default Track;
+export default Track; 

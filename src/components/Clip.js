@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Waveform from './Waveform';
 
-const Clip = ({ clip, onUpdate, onPositionChange }) => {
+const Clip = ({ clip, onUpdate, onPositionChange, trackId }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [initialX, setInitialX] = useState(0);
   const [initialLeft, setInitialLeft] = useState(0);
@@ -10,7 +10,8 @@ const Clip = ({ clip, onUpdate, onPositionChange }) => {
     setIsDragging(true);
     setInitialX(e.clientX);
     setInitialLeft(clip.left);
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('clipId', clip.id);
+    e.dataTransfer.setData('sourceTrackId', trackId);
     const img = new Image();
     img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     e.dataTransfer.setDragImage(img, 0, 0);
@@ -23,7 +24,7 @@ const Clip = ({ clip, onUpdate, onPositionChange }) => {
     if (finalLeft < 0) finalLeft = 0;
     
     clip.player.unsync();
-    const newTime = finalLeft / 100;
+    const newTime = finalLeft / 100; // 100px per second
     clip.player.sync().start(newTime);
     onUpdate(clip.id, { left: finalLeft });
     if (typeof onPositionChange === 'function') {
@@ -40,7 +41,7 @@ const Clip = ({ clip, onUpdate, onPositionChange }) => {
     }
   };
   
-  const clipWidth = clip.duration * 100;
+  const clipWidth = clip.duration * 100; // 100px per second
 
   return (
     <div
@@ -61,4 +62,4 @@ const Clip = ({ clip, onUpdate, onPositionChange }) => {
   );
 };
 
-export default Clip;
+export default Clip; 

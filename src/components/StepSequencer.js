@@ -134,4 +134,4 @@ const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
   );
 };
 
-export default StepSequencer;
+export default StepSequencer; 

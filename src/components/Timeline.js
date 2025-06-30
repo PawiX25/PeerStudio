@@ -3,14 +3,16 @@ import Track from './Track';
 import TimelineRuler from './TimelineRuler';
 import * as Tone from 'tone';
 
-const Timeline = ({ tracks, setTracks, timelineChannel, onClipMove }) => {
+const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
+  const [draggedTrackId, setDraggedTrackId] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
   const scrollContainerRef = useRef(null);
 
   useEffect(() => {
     let rafId;
 
-    const pixelsPerSecond = 100;
+    const pixelsPerSecond = 100; // how many timeline pixels correspond to one second
 
     const updatePlayhead = () => {
       const positionSeconds = Tone.Transport.seconds;
@@ -26,6 +28,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipMove }) => {
       rafId = requestAnimationFrame(updatePlayhead);
     };
 
+    // kick off the animation loop
     rafId = requestAnimationFrame(updatePlayhead);
 
     return () => {
@@ -33,35 +36,87 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipMove }) => {
     };
   }, []);
 
+  const handleDragStart = (e, trackId) => {
+    setDraggedTrackId(trackId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', trackId);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData('text/plain');
+    
+    if (draggedId && draggedId !== '') {
+      const draggedIndex = tracks.findIndex(t => t.id === draggedId);
+      if (draggedIndex !== -1 && draggedIndex !== dropIndex) {
+        const newTracks = [...tracks];
+        const [draggedTrack] = newTracks.splice(draggedIndex, 1);
+        newTracks.splice(dropIndex, 0, draggedTrack);
+        setTracks(newTracks);
+      }
+    }
+    
+    setDraggedTrackId(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTrackId(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
       <div className="flex-shrink-0">
         <TimelineRuler />
       </div>
       <div ref={scrollContainerRef} className="flex-grow overflow-auto relative p-4">
-        <div className="flex items-start gap-4">
-          <div className="w-32 flex-shrink-0 space-y-2">
-            {tracks.map(track => (
-              <div key={track.id} className="h-24 flex items-center justify-end pr-4 text-text-secondary font-bold truncate">
-                {track.name}
+        <div className="space-y-2">
+          {tracks.map((track, index) => (
+            <div key={track.id}>
+              {dragOverIndex === index && draggedTrackId !== track.id && (
+                <div className="h-2 bg-accent rounded-md mb-2 opacity-75"></div>
+              )}
+              <div
+                draggable
+                onDragStart={(e) => handleDragStart(e, track.id)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-start gap-4 cursor-move transition-opacity ${
+                  draggedTrackId === track.id ? 'opacity-50' : 'opacity-100'
+                }`}
+              >
+                <div className="w-32 flex-shrink-0 h-24 flex items-center justify-end pr-4 text-text-secondary font-bold truncate">
+                  {track.name}
+                </div>
+                <Track
+                  track={track}
+                  setTracks={setTracks}
+                  timelineChannel={timelineChannel}
+                  onClipDrop={onClipDrop}
+                  trackId={track.id}
+                />
               </div>
-            ))}
-          </div>
-          <div className="relative flex-grow">
-            <div
-              className="absolute top-0 h-full w-0.5 bg-accent z-10"
-              style={{ left: `${playheadPosition}px` }}
-            ></div>
-            <div className="space-y-2">
-              {tracks.map(track => (
-                <Track key={track.id} track={track} setTracks={setTracks} timelineChannel={timelineChannel} onClipMove={onClipMove} />
-              ))}
             </div>
-          </div>
+          ))}
+          {dragOverIndex === tracks.length && (
+            <div className="h-2 bg-accent rounded-md opacity-75"></div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default Timeline;
+export default Timeline; 
