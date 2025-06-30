@@ -3,14 +3,14 @@ import Track from './Track';
 import TimelineRuler from './TimelineRuler';
 import * as Tone from 'tone';
 
-const Timeline = ({ tracks, setTracks, timelineChannel }) => {
+const Timeline = ({ tracks, setTracks, timelineChannel, onClipMove }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const scrollContainerRef = useRef(null);
 
   useEffect(() => {
     let rafId;
 
-    const pixelsPerSecond = 100; // how many timeline pixels correspond to one second
+    const pixelsPerSecond = 100;
 
     const updatePlayhead = () => {
       const positionSeconds = Tone.Transport.seconds;
@@ -26,7 +26,6 @@ const Timeline = ({ tracks, setTracks, timelineChannel }) => {
       rafId = requestAnimationFrame(updatePlayhead);
     };
 
-    // kick off the animation loop
     rafId = requestAnimationFrame(updatePlayhead);
 
     return () => {
@@ -55,7 +54,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel }) => {
             ></div>
             <div className="space-y-2">
               {tracks.map(track => (
-                <Track key={track.id} track={track} setTracks={setTracks} timelineChannel={timelineChannel} />
+                <Track key={track.id} track={track} setTracks={setTracks} timelineChannel={timelineChannel} onClipMove={onClipMove} />
               ))}
             </div>
           </div>
@@ -65,4 +64,4 @@ const Timeline = ({ tracks, setTracks, timelineChannel }) => {
   );
 };
 
-export default Timeline; 
+export default Timeline;

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import * as Tone from 'tone';
 import Clip from './Clip';
+import generateId from '../utils/generateId';
 
 const clipColors = [
   'bg-orange-400',
@@ -11,7 +12,7 @@ const clipColors = [
   'bg-pink-400',
 ];
 
-const Track = ({ track, setTracks, timelineChannel }) => {
+const Track = ({ track, setTracks, timelineChannel, onClipMove }) => {
   const fileInputRef = useRef(null);
 
   const handleFileChange = async (event) => {
@@ -21,7 +22,7 @@ const Track = ({ track, setTracks, timelineChannel }) => {
       const player = new Tone.Player(url, () => {
         const randomColor = clipColors[Math.floor(Math.random() * clipColors.length)];
         const newClip = {
-          id: Date.now(),
+          id: generateId(),
           name: file.name,
           player,
           duration: player.buffer.duration,
@@ -58,6 +59,12 @@ const Track = ({ track, setTracks, timelineChannel }) => {
     );
   };
 
+  const handleClipPositionChange = (clipId, newLeft) => {
+    if (onClipMove) {
+      onClipMove(track.name, clipId, newLeft);
+    }
+  };
+
   return (
     <div
         className="relative flex-grow h-24 bg-bg-medium rounded-lg border border-transparent hover:border-accent/50"
@@ -75,10 +82,11 @@ const Track = ({ track, setTracks, timelineChannel }) => {
             key={clip.id}
             clip={clip}
             onUpdate={handleClipUpdate}
+            onPositionChange={handleClipPositionChange}
             />
         ))}
       </div>
   );
 };
 
-export default Track; 
+export default Track;

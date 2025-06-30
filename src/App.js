@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Timeline from './components/Timeline';
 import Header from './components/Header';
@@ -6,8 +6,17 @@ import Piano from './components/Piano';
 import StepSequencer from './components/StepSequencer';
 import Tabs, { Tab } from './components/Tabs';
 import * as Tone from 'tone';
+import Peer from 'peerjs';
+import generateId from './utils/generateId';
 
 const clipColors = ['bg-orange-400', 'bg-blue-400', 'bg-purple-400', 'bg-green-400', 'bg-yellow-400', 'bg-pink-400'];
+
+const drumSynthConfigs = [
+  { options: { pitchDecay: 0.05, octaves: 10, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' } }, type: Tone.MembraneSynth, note: 'C1' },
+  { options: { pitchDecay: 0.01, octaves: 6, oscillator: { type: 'square' }, envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 } }, type: Tone.MembraneSynth, note: 'C1' },
+  { options: { noise: { type: 'white' }, envelope: { attack: 0.001, decay: 0.1, sustain: 0 } }, type: Tone.NoiseSynth, note: '8n' },
+  { options: { pitchDecay: 0.05, octaves: 4, oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.8, sustain: 0.01, release: 1.4 } }, type: Tone.MembraneSynth, note: 'C1' },
+];
 
 function App() {
   const [tracks, setTracks] = useState([]);
@@ -17,9 +26,83 @@ function App() {
   const recordedNotes = useRef([]);
   const timelineChannel = useRef(new Tone.Channel().toDestination());
   const sequencerChannel = useRef(new Tone.Channel().toDestination());
+  const [peerId, setPeerId] = useState('');
+  const [remotePeerId, setRemotePeerId] = useState('');
+  const peerRef = useRef(null);
+  const connectionsRef = useRef([]);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const addTrack = (name) => {
-    const newTrack = { id: Date.now(), name: name || `Track ${tracks.length + 1}`, clips: [] };
+  useEffect(() => {
+    const peer = new Peer();
+
+    peer.on('open', (id) => {
+      setPeerId(id);
+    });
+
+    peer.on('connection', (conn) => {
+      setupConnectionHandlers(conn);
+      conn.on('open', () => setIsConnected(true));
+    });
+
+    peerRef.current = peer;
+
+    return () => {
+      peer.destroy();
+    };
+  }, []);
+
+  const setupConnectionHandlers = (conn) => {
+    connectionsRef.current.push(conn);
+
+    conn.on('data', (data) => {
+      if (data?.type === 'clipMove') {
+        const { trackName, clipId, left } = data;
+        setTracks((prevTracks) =>
+          prevTracks.map((t) => {
+            if (t.name === trackName) {
+              const newClips = t.clips.map((c) => {
+                if (c.id === clipId) {
+                  c.player.unsync();
+                  c.player.sync().start(left / 100);
+                  return { ...c, left };
+                }
+                return c;
+              });
+              return { ...t, clips: newClips };
+            }
+            return t;
+          })
+        );
+      } else if (data?.type === 'sequencerPattern') {
+        synthesizeSequencerPattern(data.pattern, true, data.clipId);
+      }
+    });
+
+    conn.on('close', () => {
+      connectionsRef.current = connectionsRef.current.filter((c) => c !== conn);
+    });
+  };
+
+  const connectToPeer = () => {
+    if (!remotePeerId || !peerRef.current) return;
+
+    const conn = peerRef.current.connect(remotePeerId);
+    conn.on('open', () => {
+      setupConnectionHandlers(conn);
+      setIsConnected(true);
+    });
+  };
+
+  const broadcastMessage = (msg) => {
+    connectionsRef.current.forEach((conn) => {
+      if (conn.open) {
+        conn.send(msg);
+      }
+    });
+  };
+
+  const addTrack = (name, trackId = null) => {
+    const newTrack = { id: trackId || generateId(), name: name || `Track ${tracks.length + 1}`, clips: [] };
     setTracks(prev => [...prev, newTrack]);
   };
 
@@ -86,18 +169,18 @@ function App() {
     addBufferToTrack(buffer, 'Synth');
   };
 
-  const synthesizeSequencerPattern = async (pattern, configs) => {
+  const synthesizeSequencerPattern = async (pattern, skipBroadcast = false, clipId = null) => {
     const loopDuration = Tone.Time('1m').toSeconds();
     
     const buffer = await Tone.Offline(async ({ transport }) => {
-      const synths = configs.map((config) => new config.type(config.options).toDestination());
+      const synths = drumSynthConfigs.map((config) => new config.type(config.options).toDestination());
       
       const seq = new Tone.Sequence(
         (time, col) => {
           pattern.forEach((row, rowIndex) => {
             if (row[col]) {
               const synth = synths[rowIndex];
-              const note = configs[rowIndex].note;
+              const note = drumSynthConfigs[rowIndex].note;
 
               if (synth instanceof Tone.NoiseSynth) {
                 synth.triggerAttackRelease('8n', time);
@@ -114,57 +197,94 @@ function App() {
       transport.start();
     }, loopDuration);
 
-    addBufferToTrack(buffer, 'Drums');
+    const resolvedClipId = clipId || generateId();
+    addBufferToTrack(buffer, 'Drums', resolvedClipId);
+
+    if (!skipBroadcast) {
+      broadcastMessage({ type: 'sequencerPattern', pattern, clipId: resolvedClipId });
+    }
   };
 
-  const addBufferToTrack = (buffer, trackNamePrefix = 'Track') => {
-    let targetTrackName = trackNamePrefix;
-    let targetTrack = tracks.find(t => t.name === targetTrackName);
-    
-    if (!targetTrack) {
-        let i = 1;
-        targetTrackName = `${trackNamePrefix}`;
-        while (tracks.some(t => t.name === targetTrackName)) {
-            i++;
-            targetTrackName = `${trackNamePrefix} ${i}`;
-        }
-        addTrack(targetTrackName);
-    }
-    
+  const addBufferToTrack = (buffer, trackNamePrefix = 'Track', clipId = null) => {
     const player = new Tone.Player(buffer).connect(timelineChannel.current);
     const randomColor = clipColors[Math.floor(Math.random() * clipColors.length)];
-    const newClip = {
-      id: Date.now(),
-      name: `${targetTrackName} Pattern`,
+    const newClipId = clipId || generateId();
+
+    const createClip = (forTrackName) => ({
+      id: newClipId,
+      name: `${forTrackName} Pattern`,
       player,
       duration: buffer.duration,
       left: 0,
       color: randomColor,
-    };
-    
-    setTracks(prevTracks => {
-      const newTracks = [...prevTracks];
-      const trackIndex = newTracks.findIndex(t => t.name === targetTrackName);
-      if (trackIndex !== -1) {
-        newTracks[trackIndex].clips.push(newClip);
-      } else {
-        const newTrackWithClip = { id: Date.now(), name: targetTrackName, clips: [newClip] };
-        return [...newTracks, newTrackWithClip];
-      }
-      return newTracks;
     });
-    
+
+    setTracks(prevTracks => {
+      let trackIndex = prevTracks.findIndex(t => t.name === trackNamePrefix);
+
+      let tracksCopy = [...prevTracks];
+      if (trackIndex === -1) {
+        let i = 1;
+        let newName = trackNamePrefix;
+        while (tracksCopy.some(t => t.name === newName)) {
+          i++;
+          newName = `${trackNamePrefix} ${i}`;
+        }
+        const newTrack = { id: generateId(), name: newName, clips: [createClip(newName)] };
+        tracksCopy.push(newTrack);
+        return tracksCopy;
+      }
+
+      const track = tracksCopy[trackIndex];
+      if (!track.clips.some(c => c.id === newClipId)) {
+        track.clips = [...track.clips, createClip(track.name)];
+        tracksCopy[trackIndex] = track;
+      }
+      return tracksCopy;
+    });
+
     player.sync().start(0);
+  };
+
+  const handleClipMove = (trackName, clipId, newLeft) => {
+    setTracks((prevTracks) =>
+      prevTracks.map((t) => {
+        if (t.name === trackName) {
+          const newClips = t.clips.map((c) => {
+            if (c.id === clipId) {
+              c.player.unsync();
+              c.player.sync().start(newLeft / 100);
+              return { ...c, left: newLeft };
+            }
+            return c;
+          });
+          return { ...t, clips: newClips };
+        }
+        return t;
+      })
+    );
+
+    broadcastMessage({ type: 'clipMove', trackName, clipId, left: newLeft });
   };
 
   return (
     <div className="bg-bg-dark text-text-primary h-screen flex flex-col">
-      <Header isRecording={isRecording} onRecord={handleRecord} onPlay={handlePlay} onStop={handleStop} />
+      <Header
+        isRecording={isRecording}
+        onRecord={handleRecord}
+        onPlay={handlePlay}
+        onStop={handleStop}
+        peerId={peerId}
+        remotePeerId={remotePeerId}
+        onRemotePeerIdChange={setRemotePeerId}
+        onConnect={connectToPeer}
+        isConnected={isConnected}
+      />
       <div className="flex flex-grow overflow-hidden">
         <Sidebar onAddTrack={() => addTrack()} tracks={tracks} />
         <div className="flex-grow flex flex-col overflow-hidden">
           <div className="flex-grow">
-            <Timeline tracks={tracks} setTracks={setTracks} timelineChannel={timelineChannel} />
+            <Timeline tracks={tracks} setTracks={setTracks} timelineChannel={timelineChannel} onClipMove={handleClipMove} />
           </div>
           <div className="flex-shrink-0 bg-bg-medium">
             <Tabs activeTab={activeInstrumentTab} onTabClick={setActiveInstrumentTab}>

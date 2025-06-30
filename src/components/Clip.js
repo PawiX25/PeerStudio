@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Waveform from './Waveform';
 
-const Clip = ({ clip, onUpdate }) => {
+const Clip = ({ clip, onUpdate, onPositionChange }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [initialX, setInitialX] = useState(0);
   const [initialLeft, setInitialLeft] = useState(0);
@@ -23,9 +23,12 @@ const Clip = ({ clip, onUpdate }) => {
     if (finalLeft < 0) finalLeft = 0;
     
     clip.player.unsync();
-    const newTime = finalLeft / 100; // 100px per second
+    const newTime = finalLeft / 100;
     clip.player.sync().start(newTime);
     onUpdate(clip.id, { left: finalLeft });
+    if (typeof onPositionChange === 'function') {
+      onPositionChange(clip.id, finalLeft);
+    }
   };
 
   const handleDrag = (e) => {
@@ -37,7 +40,7 @@ const Clip = ({ clip, onUpdate }) => {
     }
   };
   
-  const clipWidth = clip.duration * 100; // 100px per second
+  const clipWidth = clip.duration * 100;
 
   return (
     <div
@@ -58,4 +61,4 @@ const Clip = ({ clip, onUpdate }) => {
   );
 };
 
-export default Clip; 
+export default Clip;

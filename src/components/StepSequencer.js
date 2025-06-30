@@ -24,7 +24,6 @@ const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
   }, [sequencerChannel]);
 
   useEffect(() => {
-    // create the clock once on mount
     let stepIndex = 0;
     const freq = 1 / Tone.Time('16n').toSeconds();
 
@@ -68,7 +67,6 @@ const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
     sequencerChannel.current.mute = false;
     timelineChannel.current.mute = true;
 
-    // restart clock if already instantiated
     if (clock.current) {
       clock.current.start();
     }
@@ -85,7 +83,6 @@ const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
   };
 
   const handleClear = () => {
-    // keep current play state (do not stop clock). channels unchanged.
     const cleared = Array.from({ length: drumNames.length }, () => Array(16).fill(0));
     patternRef.current = cleared;
     setPattern(cleared);
@@ -106,7 +103,7 @@ const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
             Clear
           </button>
           <button
-            onClick={() => onExport(pattern, drumSynthConfigs)}
+            onClick={() => onExport(pattern)}
             className="bg-accent hover:bg-accent-hover text-bg-dark font-bold py-2 px-4 rounded"
           >
             Export to Timeline
@@ -137,4 +134,4 @@ const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
   );
 };
 
-export default StepSequencer; 
+export default StepSequencer;
