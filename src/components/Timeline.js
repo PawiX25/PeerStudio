@@ -80,18 +80,17 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
 
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
-      <div className="flex-shrink-0 flex items-center">
-        <div className="w-32 flex-shrink-0 pr-4" />
-        <div className="flex-grow pl-4">
+      <div className="flex-shrink-0">
+        <div className="flex-grow">
           <TimelineRuler />
         </div>
       </div>
       <div ref={scrollContainerRef} className="flex-grow overflow-auto relative">
         <div
           className="absolute top-0 bottom-0 w-0.5 bg-accent z-10"
-          style={{ left: `${playheadPosition + 128 + 16}px` }}
+          style={{ left: `${playheadPosition}px` }}
         />
-        <div className="space-y-2 py-2">
+        <div className="space-y-2 p-4">
           {tracks.map((track, index) => (
             <div key={track.id}>
               {draggedTrackId && dragOverIndex === index && draggedTrackId !== track.id && (
@@ -104,22 +103,17 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
-                className={`flex items-start gap-4 cursor-move transition-opacity ${
+                className={`cursor-move transition-opacity ${
                   draggedTrackId === track.id ? 'opacity-50' : 'opacity-100'
                 }`}
               >
-                <div className="w-32 flex-shrink-0 h-24 flex items-center justify-end pr-4 text-text-secondary font-bold truncate">
-                  {track.name}
-                </div>
-                <div className="flex-grow pr-4">
-                  <Track
-                    track={track}
-                    setTracks={setTracks}
-                    timelineChannel={timelineChannel}
-                    onClipDrop={onClipDrop}
-                    trackId={track.id}
-                  />
-                </div>
+                <Track
+                  track={track}
+                  setTracks={setTracks}
+                  timelineChannel={timelineChannel}
+                  onClipDrop={onClipDrop}
+                  trackId={track.id}
+                />
               </div>
             </div>
           ))}

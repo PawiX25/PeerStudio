@@ -85,31 +85,38 @@ const [isDragOver, setIsDragOver] = useState(false);
     onClipDrop(clipId, sourceTrackId, track.id, clipLeft);
   };
 
+  const isLabelObscured = track.clips.some((clip) => clip.left < 50);
+
   return (
     <div
-        className={`relative flex-grow h-24 bg-bg-medium rounded-lg border-2 ${isDragOver ? 'border-accent' : 'border-transparent hover:border-accent/50'}`}
-        onContextMenu={handleContextMenu}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input
-            type="file"
-            accept="audio/*"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
+      className={`relative h-24 bg-bg-medium rounded-lg border-2 ${isDragOver ? 'border-accent' : 'border-transparent hover:border-accent/50'}`}
+      onContextMenu={handleContextMenu}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {!isLabelObscured && (
+        <div className="absolute top-2 left-3 text-text-secondary font-bold z-10 pointer-events-none opacity-70">
+          {track.name}
+        </div>
+      )}
+      <input
+        type="file"
+        accept="audio/*"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      {track.clips.map((clip) => (
+        <Clip
+          key={clip.id}
+          clip={clip}
+          onUpdate={handleClipUpdate}
+          onPositionChange={handleClipPositionChange}
+          trackId={track.id}
         />
-        {track.clips.map((clip) => (
-            <Clip
-              key={clip.id}
-              clip={clip}
-              onUpdate={handleClipUpdate}
-              onPositionChange={handleClipPositionChange}
-              trackId={track.id}
-            />
-        ))}
-      </div>
+      ))}
+    </div>
   );
 };
 
