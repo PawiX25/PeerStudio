@@ -84,6 +84,10 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
         <TimelineRuler />
       </div>
       <div ref={scrollContainerRef} className="flex-grow overflow-auto relative p-4">
+        <div
+            className="absolute top-0 bottom-0 w-0.5 bg-accent z-10"
+            style={{ left: `${playheadPosition}px` }}
+        ></div>
         <div className="space-y-2">
           {tracks.map((track, index) => (
             <div key={track.id}>
