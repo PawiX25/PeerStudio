@@ -81,7 +81,8 @@ const [isDragOver, setIsDragOver] = useState(false);
     setIsDragOver(false);
     const clipId = e.dataTransfer.getData('clipId');
     const sourceTrackId = e.dataTransfer.getData('sourceTrackId');
-    onClipDrop(clipId, sourceTrackId, track.id);
+    const clipLeft = parseFloat(e.dataTransfer.getData('clipLeft')) || 0;
+    onClipDrop(clipId, sourceTrackId, track.id, clipLeft);
   };
 
   return (
@@ -101,10 +102,11 @@ const [isDragOver, setIsDragOver] = useState(false);
         />
         {track.clips.map((clip) => (
             <Clip
-            key={clip.id}
-            clip={clip}
-            onUpdate={handleClipUpdate}
-            onPositionChange={handleClipPositionChange}
+              key={clip.id}
+              clip={clip}
+              onUpdate={handleClipUpdate}
+              onPositionChange={handleClipPositionChange}
+              trackId={track.id}
             />
         ))}
       </div>

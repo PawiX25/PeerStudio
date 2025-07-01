@@ -44,6 +44,10 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
 
   const handleDragOver = (e, index) => {
     e.preventDefault();
+
+    const isClipDrag = !!e.dataTransfer.getData('clipId');
+    if (isClipDrag) return;
+
     setDragOverIndex(index);
   };
 
@@ -83,7 +87,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
         <div className="space-y-2">
           {tracks.map((track, index) => (
             <div key={track.id}>
-              {dragOverIndex === index && draggedTrackId !== track.id && (
+              {draggedTrackId && dragOverIndex === index && draggedTrackId !== track.id && (
                 <div className="h-2 bg-accent rounded-md mb-2 opacity-75"></div>
               )}
               <div
@@ -110,7 +114,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
               </div>
             </div>
           ))}
-          {dragOverIndex === tracks.length && (
+          {draggedTrackId && dragOverIndex === tracks.length && (
             <div className="h-2 bg-accent rounded-md opacity-75"></div>
           )}
         </div>

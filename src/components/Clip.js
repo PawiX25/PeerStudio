@@ -7,11 +7,13 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId }) => {
   const [initialLeft, setInitialLeft] = useState(0);
 
   const handleDragStart = (e) => {
+    e.stopPropagation();
     setIsDragging(true);
     setInitialX(e.clientX);
     setInitialLeft(clip.left);
     e.dataTransfer.setData('clipId', clip.id);
     e.dataTransfer.setData('sourceTrackId', trackId);
+    e.dataTransfer.setData('clipLeft', clip.left);
     const img = new Image();
     img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     e.dataTransfer.setDragImage(img, 0, 0);
