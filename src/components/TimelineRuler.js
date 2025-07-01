@@ -1,6 +1,6 @@
 import React from 'react';
 
-const TimelineRuler = () => {
+const TimelineRuler = ({ noPadding = false }) => {
   const pixelsPerSecond = 100;
   const totalSeconds = 60 * 5; // 5 minutes
   const totalWidth = totalSeconds * pixelsPerSecond;
@@ -26,7 +26,7 @@ const TimelineRuler = () => {
 
   return (
     <div className="relative h-8 bg-bg-medium" style={{ width: `${totalWidth}px` }}>
-      <div className="p-4 h-full">
+      <div className={`${noPadding ? '' : 'p-4'} h-full`}>
         {markers}
       </div>
     </div>

@@ -80,15 +80,18 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
 
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
-      <div className="flex-shrink-0">
-        <TimelineRuler />
+      <div className="flex-shrink-0 flex items-center">
+        <div className="w-32 flex-shrink-0 pr-4" />
+        <div className="flex-grow pl-4">
+          <TimelineRuler />
+        </div>
       </div>
-      <div ref={scrollContainerRef} className="flex-grow overflow-auto relative p-4">
+      <div ref={scrollContainerRef} className="flex-grow overflow-auto relative">
         <div
-            className="absolute top-0 bottom-0 w-0.5 bg-accent z-10"
-            style={{ left: `${playheadPosition}px` }}
-        ></div>
-        <div className="space-y-2">
+          className="absolute top-0 bottom-0 w-0.5 bg-accent z-10"
+          style={{ left: `${playheadPosition + 128 + 16}px` }}
+        />
+        <div className="space-y-2 py-2">
           {tracks.map((track, index) => (
             <div key={track.id}>
               {draggedTrackId && dragOverIndex === index && draggedTrackId !== track.id && (
@@ -108,13 +111,15 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
                 <div className="w-32 flex-shrink-0 h-24 flex items-center justify-end pr-4 text-text-secondary font-bold truncate">
                   {track.name}
                 </div>
-                <Track
-                  track={track}
-                  setTracks={setTracks}
-                  timelineChannel={timelineChannel}
-                  onClipDrop={onClipDrop}
-                  trackId={track.id}
-                />
+                <div className="flex-grow pr-4">
+                  <Track
+                    track={track}
+                    setTracks={setTracks}
+                    timelineChannel={timelineChannel}
+                    onClipDrop={onClipDrop}
+                    trackId={track.id}
+                  />
+                </div>
               </div>
             </div>
           ))}
