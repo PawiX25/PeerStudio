@@ -183,11 +183,16 @@ const [isDragOver, setIsDragOver] = useState(false);
     
     const clipId = e.dataTransfer.getData('clipId');
     const sourceTrackId = e.dataTransfer.getData('sourceTrackId');
-    const clipLeft = parseFloat(e.dataTransfer.getData('clipLeft')) || 0;
-    
+    const startX = parseFloat(e.dataTransfer.getData('startX')) || 0;
+    const startLeft = parseFloat(e.dataTransfer.getData('clipLeft')) || 0;
+
+    const deltaX = e.clientX - startX;
+    let newLeft = startLeft + deltaX;
+    if (newLeft < 0) newLeft = 0;
+
     // Use requestAnimationFrame for smoother drop handling
     requestAnimationFrame(() => {
-      onClipDrop(clipId, sourceTrackId, track.id, clipLeft);
+      onClipDrop(clipId, sourceTrackId, track.id, newLeft);
     });
   };
 
