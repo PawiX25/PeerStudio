@@ -11,7 +11,6 @@ const TimelineRuler = ({ noPadding = false }) => {
   for (let i = 0; i <= totalSeconds; i++) {
     const isMajor = i % majorMarkInterval === 0;
     const isMinor = i % minorMarkInterval === 0;
-    const isBeat = i % 1 === 0;
 
     if (isMajor) {
       markers.push(

@@ -89,11 +89,17 @@ const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
   };
 
   return (
-    <div className="bg-bg-dark p-4 rounded-lg">
+    <div className="bg-bg-dark p-4 rounded-lg"
+         onContextMenu={(e) => e.preventDefault()}
+         onDoubleClick={(e) => e.preventDefault()}>
        <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
-            <button onClick={handlePreviewPlay} className="bg-accent hover:bg-accent-hover text-bg-dark font-bold p-2 rounded-full w-8 h-8 flex items-center justify-center">▶</button>
-            <button onClick={handlePreviewStop} className="bg-bg-light hover:bg-gray-600 text-text-primary font-bold p-2 rounded-full w-8 h-8 flex items-center justify-center">■</button>
+            <button onClick={handlePreviewPlay} className="bg-bg-light hover:bg-green-600 text-text-primary font-bold p-2 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+              <div className="w-0 h-0 border-l-[12px] border-l-green-500 border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent ml-0.5"></div>
+            </button>
+            <button onClick={handlePreviewStop} className="bg-bg-light hover:bg-gray-600 text-text-primary font-bold p-2 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+              <div className="w-3 h-3 bg-gray-400 rounded-sm"></div>
+            </button>
         </div>
         <div className="flex gap-2">
           <button

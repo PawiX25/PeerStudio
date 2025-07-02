@@ -3,16 +3,30 @@ import Track from './Track';
 import TimelineRuler from './TimelineRuler';
 import * as Tone from 'tone';
 
-const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
+const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [draggedTrackId, setDraggedTrackId] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
+  const [isDroppingFiles, setIsDroppingFiles] = useState(false);
   const scrollContainerRef = useRef(null);
 
   useEffect(() => {
     let rafId;
+    let isUserScrolling = false;
+    let userScrollTimeout;
 
     const pixelsPerSecond = 100; // how many timeline pixels correspond to one second
+
+    // Track user scrolling to avoid conflicts with auto-scroll
+    const handleUserScroll = () => {
+      isUserScrolling = true;
+      clearTimeout(userScrollTimeout);
+      userScrollTimeout = setTimeout(() => {
+        isUserScrolling = false;
+      }, 1000); // Stop auto-scroll for 1 second after user scrolling
+    };
 
     const updatePlayhead = () => {
       const positionSeconds = Tone.Transport.seconds;
@@ -20,52 +34,112 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
 
       setPlayheadPosition(newPosition);
 
-      if (scrollContainerRef.current && Tone.Transport.state === 'started') {
+      // Only auto-scroll during playback if user isn't manually scrolling
+      if (scrollContainerRef.current && 
+          Tone.Transport.state === 'started' && 
+          !isUserScrolling) {
         const containerWidth = scrollContainerRef.current.offsetWidth;
-        scrollContainerRef.current.scrollLeft = newPosition - containerWidth / 2;
+        const currentScrollLeft = scrollContainerRef.current.scrollLeft;
+        const playheadScreenPosition = newPosition - currentScrollLeft;
+        
+        // Only scroll if playhead is getting close to edges
+        if (playheadScreenPosition > containerWidth * 0.8 || playheadScreenPosition < containerWidth * 0.2) {
+          scrollContainerRef.current.scrollLeft = newPosition - containerWidth / 2;
+        }
       }
 
       rafId = requestAnimationFrame(updatePlayhead);
     };
+
+    // Add scroll listener
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleUserScroll, { passive: true });
+    }
 
     // kick off the animation loop
     rafId = requestAnimationFrame(updatePlayhead);
 
     return () => {
       cancelAnimationFrame(rafId);
+      clearTimeout(userScrollTimeout);
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleUserScroll);
+      }
     };
   }, []);
 
+  // Track music playing state to prevent dragging during playback
+  useEffect(() => {
+    const checkTransportState = () => {
+      setIsMusicPlaying(Tone.Transport.state === 'started');
+    };
+
+    checkTransportState();
+    const interval = setInterval(checkTransportState, 200);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleDragStart = (e, trackId) => {
+    // Prevent track reordering during playback
+    if (isMusicPlaying) {
+      e.preventDefault();
+      return;
+    }
+    
     setDraggedTrackId(trackId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', trackId);
+    // Add a specific identifier for track drags
+    e.dataTransfer.setData('application/x-track-id', trackId);
+    
+    // Create a more visible drag image
+    const dragImage = e.target.cloneNode(true);
+    dragImage.style.opacity = '0.8';
+    dragImage.style.transform = 'rotate(2deg)';
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
   };
 
   const handleDragOver = (e, index) => {
     e.preventDefault();
+    e.stopPropagation();
 
-    const isClipDrag = !!e.dataTransfer.getData('clipId');
-    if (isClipDrag) return;
+    // Check if this is a clip drag rather than track reorder
+    const clipId = e.dataTransfer.types.includes('application/x-clip-id');
+    if (clipId) return;
 
-    setDragOverIndex(index);
+    // Optimize by only updating if index actually changed
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
   };
 
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
+  const handleDragLeave = (e) => {
+    // Only clear drag over if we're actually leaving the target area
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverIndex(null);
+    }
   };
 
   const handleDrop = (e, dropIndex) => {
     e.preventDefault();
-    const draggedId = e.dataTransfer.getData('text/plain');
+    e.stopPropagation();
     
-    if (draggedId && draggedId !== '') {
+    const draggedId = e.dataTransfer.getData('text/plain');
+    const isTrackDrag = e.dataTransfer.types.includes('application/x-track-id');
+    
+    // Only process track reordering drags
+    if (isTrackDrag && draggedId && draggedId !== '') {
       const draggedIndex = tracks.findIndex(t => t.id === draggedId);
       if (draggedIndex !== -1 && draggedIndex !== dropIndex) {
-        const newTracks = [...tracks];
-        const [draggedTrack] = newTracks.splice(draggedIndex, 1);
-        newTracks.splice(dropIndex, 0, draggedTrack);
-        setTracks(newTracks);
+        // Use requestAnimationFrame for smoother state updates
+        requestAnimationFrame(() => {
+          const newTracks = [...tracks];
+          const [draggedTrack] = newTracks.splice(draggedIndex, 1);
+          newTracks.splice(dropIndex, 0, draggedTrack);
+          setTracks(newTracks);
+        });
       }
     }
     
@@ -78,45 +152,180 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop }) => {
     setDragOverIndex(null);
   };
 
+  // Playhead dragging functionality
+  const handlePlayheadMouseDown = (e) => {
+    if (isMusicPlaying) return; // Don't allow dragging during playback
+    
+    setIsDraggingPlayhead(true);
+    const startX = e.clientX;
+    const startScrollLeft = scrollContainerRef.current.scrollLeft;
+    const pixelsPerSecond = 100;
+    
+    const handleMouseMove = (e) => {
+      const deltaX = e.clientX - startX;
+      const newPosition = Math.max(0, playheadPosition + deltaX);
+      const newTimeSeconds = newPosition / pixelsPerSecond;
+      
+      // Update Tone.js transport position
+      Tone.Transport.seconds = newTimeSeconds;
+      setPlayheadPosition(newPosition);
+    };
+    
+    const handleMouseUp = () => {
+      setIsDraggingPlayhead(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Handle clicking on timeline to move playhead
+  const handleTimelineClick = (e) => {
+    if (isMusicPlaying || isDraggingPlayhead) return;
+    
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left + scrollContainerRef.current.scrollLeft;
+    const pixelsPerSecond = 100;
+    const newTimeSeconds = clickX / pixelsPerSecond;
+    
+    Tone.Transport.seconds = Math.max(0, newTimeSeconds);
+  };
+
+  // File drop handlers for timeline
+  const handleTimelineFileDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only allow file drops, not track/clip drags
+    const hasFiles = e.dataTransfer.types.includes('Files');
+    if (hasFiles && !isMusicPlaying) {
+      setIsDroppingFiles(true);
+    }
+  };
+
+  const handleTimelineFileDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDroppingFiles(false);
+  };
+
+  const handleTimelineFileDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDroppingFiles(false);
+
+    if (isMusicPlaying) {
+      alert('Please stop the music before importing audio files.');
+      return;
+    }
+
+    const files = Array.from(e.dataTransfer.files);
+    const audioFiles = files.filter(file => file.type.startsWith('audio/'));
+
+    if (audioFiles.length === 0) {
+      alert('No valid audio files found. Please drop audio files only.');
+      return;
+    }
+
+    // Import the first audio file
+    if (onAudioImport) {
+      try {
+        await onAudioImport(audioFiles[0]);
+        if (audioFiles.length > 1) {
+          alert(`Found ${audioFiles.length} audio files. Imported the first one: ${audioFiles[0].name}`);
+        }
+      } catch (error) {
+        console.error('Error importing dropped file:', error);
+        alert('Error importing audio file. Please try again.');
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
+      {/* Timeline Ruler - Fixed height */}
       <div className="flex-shrink-0">
-        <div className="flex-grow">
-          <TimelineRuler />
-        </div>
+        <TimelineRuler />
       </div>
-      <div ref={scrollContainerRef} className="flex-grow overflow-auto relative">
+      
+      {/* Timeline Content - Scrollable area */}
+      <div 
+        ref={scrollContainerRef} 
+        className={`flex-1 overflow-auto relative min-h-0 ${
+          isDroppingFiles ? 'bg-green-500 bg-opacity-20 border-2 border-green-500 border-dashed' : ''
+        }`}
+        onClick={handleTimelineClick}
+        onDragOver={handleTimelineFileDragOver}
+        onDragLeave={handleTimelineFileDragLeave}
+        onDrop={handleTimelineFileDrop}
+      >
+        {/* Playhead with draggable handle */}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-accent z-10"
+          className="absolute top-0 bottom-0 w-0.5 bg-accent z-10 pointer-events-none"
           style={{ left: `${playheadPosition}px` }}
-        />
-        <div className="space-y-2 p-4">
-          {tracks.map((track, index) => (
-            <div key={track.id}>
-              {draggedTrackId && dragOverIndex === index && draggedTrackId !== track.id && (
-                <div className="h-2 bg-accent rounded-md mb-2 opacity-75"></div>
-              )}
-              <div
-                draggable
-                onDragStart={(e) => handleDragStart(e, track.id)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`cursor-move transition-opacity ${
-                  draggedTrackId === track.id ? 'opacity-50' : 'opacity-100'
-                }`}
-              >
-                <Track
-                  track={track}
-                  setTracks={setTracks}
-                  timelineChannel={timelineChannel}
-                  onClipDrop={onClipDrop}
-                  trackId={track.id}
-                />
+        >
+          {/* Draggable playhead handle */}
+          <div
+            className={`absolute top-0 w-4 h-6 bg-accent rounded-b-md shadow-lg pointer-events-auto ${
+              isMusicPlaying ? 'cursor-not-allowed opacity-50' : isDraggingPlayhead ? 'cursor-grabbing' : 'cursor-grab'
+            } transition-opacity hover:bg-accent-hover`}
+            style={{ left: '-7px' }}
+            onMouseDown={handlePlayheadMouseDown}
+            title={isMusicPlaying ? 'Stop playback to move playhead' : 'Drag to move playhead or click timeline'}
+          >
+            {/* Visual grip lines */}
+            <div className="absolute inset-0 flex flex-col justify-center items-center">
+              <div className="w-1 h-0.5 bg-white opacity-70 mb-0.5"></div>
+              <div className="w-1 h-0.5 bg-white opacity-70 mb-0.5"></div>
+              <div className="w-1 h-0.5 bg-white opacity-70"></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Tracks Container */}
+        <div className="space-y-2 p-4 min-h-full">
+          {tracks.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-text-secondary select-none">
+              <div className="text-center">
+                <p className="text-lg mb-2 select-none">No tracks yet</p>
+                <p className="text-sm select-none">Add a track from the sidebar or create clips using the instruments below</p>
               </div>
             </div>
-          ))}
+          ) : (
+            tracks.map((track, index) => (
+              <div key={track.id}>
+                {draggedTrackId && dragOverIndex === index && draggedTrackId !== track.id && (
+                  <div className="h-2 bg-accent rounded-md mb-2 opacity-75"></div>
+                )}
+                <div
+                  draggable={!isMusicPlaying}
+                  onDragStart={(e) => handleDragStart(e, track.id)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`transition-opacity ${
+                    isMusicPlaying 
+                      ? 'cursor-not-allowed opacity-75' 
+                      : 'cursor-move'
+                  } ${
+                    draggedTrackId === track.id ? 'opacity-50' : 'opacity-100'
+                  }`}
+                  title={isMusicPlaying ? 'Stop playback to reorder tracks' : 'Drag to reorder tracks'}
+                >
+                  <Track
+                    track={track}
+                    setTracks={setTracks}
+                    timelineChannel={timelineChannel}
+                    onClipDrop={onClipDrop}
+                    trackId={track.id}
+                  />
+                </div>
+              </div>
+            ))
+          )}
           {draggedTrackId && dragOverIndex === tracks.length && (
             <div className="h-2 bg-accent rounded-md opacity-75"></div>
           )}

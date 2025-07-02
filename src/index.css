@@ -2,10 +2,511 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom scrollbar styles for better UX */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #4B5563 transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #4B5563;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #6B7280;
+}
+
+/* Ensure minimum height for flex containers */
+.min-h-0 {
+  min-height: 0;
+}
+
+/* Responsive height utilities */
+@media (max-height: 600px) {
+  .min-instrument-height {
+    height: 200px;
+  }
+}
+
+@media (min-height: 601px) and (max-height: 800px) {
+  .min-instrument-height {
+    height: 300px;
+  }
+}
+
+@media (min-height: 801px) {
+  .min-instrument-height {
+    height: 400px;
+  }
+}
+
+/* Volume slider styling - thin track with circle button */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #2D3748;
+  border-radius: 2px;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-track {
+  background: #2D3748;
+  border-radius: 2px;
+  height: 4px;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #4A5568;
+  cursor: grab;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+  position: relative;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  background: #F7FAFC;
+  border-color: #2B6CB0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  transform: scale(1.1);
+}
+
+.volume-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.15);
+  background: #EDF2F7;
+  border-color: #2C5282;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: none;
+}
+
+.volume-slider::-moz-range-track {
+  background: #2D3748;
+  border-radius: 2px;
+  height: 4px;
+  border: none;
+}
+
+.volume-slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #4A5568;
+  cursor: grab;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+  border: none;
+}
+
+.volume-slider::-moz-range-thumb:hover {
+  background: #F7FAFC;
+  border-color: #2B6CB0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  transform: scale(1.1);
+}
+
+.volume-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.15);
+  background: #EDF2F7;
+  border-color: #2C5282;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: none;
+}
+
+.volume-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.volume-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  transform: none;
+  border-color: #6B7280;
+}
+
+.volume-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  transform: none;
+  border-color: #6B7280;
+}
+
+/* Unified volume slider - invisible slider that works with visual track */
+.unified-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.unified-volume-slider::-webkit-slider-track {
+  background: transparent;
+  border: none;
+  height: 8px;
+}
+
+.unified-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #4A5568;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: none;
+  position: relative;
+  margin-top: -7px;
+  margin-left: 0;
+}
+
+.unified-volume-slider::-webkit-slider-thumb:hover {
+  background: #ffffff;
+  border-color: #2B6CB0;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+  transform: scale(1.05);
+}
+
+.unified-volume-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  background: #ffffff;
+  border-color: #2C5282;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  transform: scale(1.1);
+}
+
+.unified-volume-slider::-moz-range-track {
+  background: transparent;
+  border: none;
+  height: 8px;
+}
+
+.unified-volume-slider::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #4A5568;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  border: none;
+  margin-left: 0;
+}
+
+.unified-volume-slider::-moz-range-thumb:hover {
+  background: #ffffff;
+  border-color: #2B6CB0;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+  transform: scale(1.05);
+}
+
+.unified-volume-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+  background: #ffffff;
+  border-color: #2C5282;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  transform: scale(1.1);
+}
+
+.unified-volume-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.unified-volume-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  transform: none;
+  border-color: #6B7280;
+}
+
+.unified-volume-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  transform: none;
+  border-color: #6B7280;
+}
+
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Disable text selection globally */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection for input fields and editable content */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Allow text selection for specific UI elements */
+.allow-text-selection {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Renaming input fields - use !important to override global disable */
+.rename-input {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* More specific selectors for input elements */
+input.rename-input {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Ensure all text inputs can be selected */
+input[type="text"] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Prevent drag interference with text selection */
+[draggable="true"] input {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  pointer-events: auto !important;
+}
+
+/* Override any global drag prevention for inputs */
+input:focus, input:active {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: text !important;
+}
+
+/* Mobile landscape view support */
+@media screen and (max-height: 600px) and (orientation: landscape) {
+  /* Keep channel rack but hide level meters in mobile landscape */
+  .mobile-landscape-hide {
+    display: none;
+  }
+  
+  /* Adjust header to be more compact */
+  .mobile-landscape-header {
+    padding: 0.5rem 1rem;
+  }
+  
+  /* Make bottom panel smaller in landscape */
+  .mobile-landscape-bottom {
+    height: min(30vh, 250px) !important;
+  }
+  
+  /* Stack volume sliders horizontally with smaller height */
+  .mobile-landscape-volume {
+    height: 80px;
+  }
+  
+  /* Compact level meters */
+  .mobile-landscape-levels {
+    max-height: 60px;
+  }
+}
+
+/* Channel rack visibility - show at ALL zoom levels except 250%+ */
+.channel-rack-container {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+/* Only hide channel rack at true 250% zoom (very specific detection) */
+@media screen and (min-width: 4000px), screen and (min-resolution: 300dpi) {
+  .channel-rack-container {
+    display: none !important;
+  }
+}
+
+/* Force visibility at common zoom levels */
+@media screen and (max-width: 3999px) {
+  .channel-rack-container {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Override any zoom-based hiding for channel rack at normal sizes */
+@media screen and (max-width: 320px) {
+  .channel-rack-container {
+    display: block !important;
+    min-width: 150px;
+  }
+}
+
+/* Simple volume slider styling - background handled by inline styles */
+.simple-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.simple-volume-slider:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.simple-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #6B7280;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.simple-volume-slider::-webkit-slider-thumb:hover {
+  background: #f8fafc;
+  border-color: #22c55e;
+  box-shadow: 0 3px 10px rgba(34, 197, 94, 0.4);
+  transform: scale(1.1);
+}
+
+.simple-volume-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  background: #e2e8f0;
+  border-color: #16a34a;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
+}
+
+.simple-volume-slider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(to right, #22c55e 0%, #16a34a 100%);
+  border-radius: 3px;
+  border: none;
+}
+
+.simple-volume-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #6B7280;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: none;
+}
+
+.simple-volume-slider::-moz-range-thumb:hover {
+  background: #f8fafc;
+  border-color: #22c55e;
+  box-shadow: 0 3px 10px rgba(34, 197, 94, 0.4);
+  transform: scale(1.1);
+}
+
+.simple-volume-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+  background: #e2e8f0;
+  border-color: #16a34a;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
+}
+
+.simple-volume-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.simple-volume-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  border-color: #6B7280;
+  transform: none;
+}
+
+.simple-volume-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  border-color: #6B7280;
+  transform: none;
+}
+
+/* Glow effect for volume sliders */
+.glow-effect {
+  position: relative;
+}
+
+.glow-effect::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: inherit;
+  border-radius: inherit;
+  filter: blur(8px);
+  opacity: 0.7;
+  z-index: -1;
+}
+
+@media screen and (max-width: 1024px) and (orientation: landscape) {
+  .mobile-landscape-sidebar {
+    width: 200px;
+  }
+  
+  .mobile-landscape-compact {
+    font-size: 0.75rem;
+  }
 }
 
 code {

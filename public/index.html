@@ -25,6 +25,19 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>React App</title>
+    <!-- Load lamejs from CDN to fix MP3 export issues -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <script>
+      // Debug lamejs loading
+      window.addEventListener('load', function() {
+        console.log('Checking lamejs availability:');
+        console.log('window.lamejs:', window.lamejs);
+        console.log('window.Mp3Encoder:', window.Mp3Encoder);
+        if (window.lamejs) {
+          console.log('lamejs properties:', Object.keys(window.lamejs));
+        }
+      });
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
