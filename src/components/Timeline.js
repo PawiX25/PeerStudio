@@ -19,6 +19,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const pixelsPerSecondConst = 100;
   const [contextMenu, setContextMenu] = useState(null);
+  const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
     let rafId;
@@ -101,6 +102,21 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
       window.removeEventListener('resize', updateDimensions);
     };
   }, []);
+
+  useEffect(() => {
+    const updateHeight = () => {
+      if (scrollContainerRef.current) {
+        setContentHeight(scrollContainerRef.current.scrollHeight);
+      }
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, [tracks]);
 
   // Track music playing state to prevent dragging during playback
   useEffect(() => {
@@ -343,8 +359,8 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
       >
         {/* Playhead with draggable handle */}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-accent z-10 pointer-events-none"
-          style={{ left: `${playheadPosition}px` }}
+          className="absolute top-0 w-0.5 bg-accent z-10 pointer-events-none"
+          style={{ left: `${playheadPosition}px`, height: `${contentHeight}px` }}
         >
           {/* Draggable playhead handle */}
           <div
