@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Track from './Track';
-import TimelineRuler from './TimelineRuler';
+import TimelineRuler, { TimelinePreviewContainer } from './TimelineRuler';
 import * as Tone from 'tone';
 
 const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport }) => {
@@ -13,6 +13,9 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   const scrollContainerRef = useRef(null);
   const rulerRef = useRef(null);
   const [timelineWidth, setTimelineWidth] = useState(6000);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const pixelsPerSecondConst = 100;
 
   useEffect(() => {
@@ -74,6 +77,26 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
       if (scrollContainer) {
         scrollContainer.removeEventListener('scroll', handleUserScroll);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const updateDimensions = () => {
+      setScrollLeft(container.scrollLeft);
+      setViewportWidth(container.offsetWidth);
+    };
+
+    updateDimensions();
+
+    container.addEventListener('scroll', updateDimensions, { passive: true });
+    window.addEventListener('resize', updateDimensions);
+
+    return () => {
+      container.removeEventListener('scroll', updateDimensions);
+      window.removeEventListener('resize', updateDimensions);
     };
   }, []);
 
@@ -270,13 +293,32 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
     }
   };
 
+  const handlePreviewNavigate = (newScrollLeft) => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = newScrollLeft;
+    }
+  };
+
+  const rulerAreaHeight = 32 + (isPreviewOpen && tracks.length > 0 ? 88 : 0);
+
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
       {/* Timeline Ruler */}
-      <div className="flex-shrink-0 overflow-hidden relative">
-        <div ref={rulerRef} className="will-change-transform">
-          <TimelineRuler widthPx={timelineWidth} />
+      <div className="flex-shrink-0 relative" style={{ height: `${rulerAreaHeight}px` }}>
+        <div className="overflow-hidden relative h-8">
+          <div ref={rulerRef} className="will-change-transform">
+            <TimelineRuler widthPx={timelineWidth} />
+          </div>
         </div>
+        <TimelinePreviewContainer
+          widthPx={timelineWidth}
+          tracks={tracks}
+          scrollLeft={scrollLeft}
+          viewportWidth={viewportWidth}
+          onPreviewNavigate={handlePreviewNavigate}
+          isPreviewOpen={isPreviewOpen}
+          onToggle={setIsPreviewOpen}
+        />
       </div>
       
       {/* Timeline Content - Scrollable area */}
