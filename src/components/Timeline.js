@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Track from './Track';
 import TimelineRuler, { TimelinePreviewContainer } from './TimelineRuler';
 import * as Tone from 'tone';
+import ContextMenu from './ContextMenu';
 
-const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport }) => {
+const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport, onAddTrack }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [draggedTrackId, setDraggedTrackId] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -17,6 +18,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   const [viewportWidth, setViewportWidth] = useState(0);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const pixelsPerSecondConst = 100;
+  const [contextMenu, setContextMenu] = useState(null);
 
   useEffect(() => {
     let rafId;
@@ -301,6 +303,13 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
   const rulerAreaHeight = 32 + (isPreviewOpen && tracks.length > 0 ? 88 : 0);
 
+  const showContextMenu = (e) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const closeContextMenu = () => setContextMenu(null);
+
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
       {/* Timeline Ruler */}
@@ -356,7 +365,15 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
         </div>
         
         {/* Tracks Container */}
-        <div className="space-y-2 p-4 min-h-full" style={{ width: `${timelineWidth}px` }}>
+        <div
+          className="space-y-2 p-4 min-h-full"
+          style={{ width: `${timelineWidth}px` }}
+          onContextMenu={(e) => {
+            if (e.target === e.currentTarget) {
+              showContextMenu(e);
+            }
+          }}
+        >
           {tracks.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-text-secondary select-none">
               <div className="text-center">
@@ -402,6 +419,14 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
           )}
         </div>
       </div>
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onAddTrack={onAddTrack}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   );
 };

@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import LevelMeters from './LevelMeters';
+import ContextMenu from './ContextMenu';
 
-const Channel = ({ name, color, onNameChange, isEditing, onEditToggle, onRemove }) => {
+const Channel = ({ name, color, onNameChange, isEditing, onEditToggle }) => {
   const [editName, setEditName] = useState(name);
   
   const handleKeyPress = (e) => {
@@ -47,18 +47,6 @@ const Channel = ({ name, color, onNameChange, isEditing, onEditToggle, onRemove 
           {name}
         </span>
       )}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 rounded transition-colors"
-        title="Remove track"
-      >
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-        </svg>
-      </button>
     </div>
   );
 };
@@ -68,6 +56,7 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [editingTrackId, setEditingTrackId] = useState(null);
   const [editingClipId, setEditingClipId] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
 
   const handleDragStart = (e, trackId) => {
     setDraggedTrackId(trackId);
@@ -150,17 +139,33 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
     setTracks(prevTracks => prevTracks.filter(track => track.id !== trackId));
   };
 
+  const showContextMenu = (event, trackId = null) => {
+    event.preventDefault();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      trackId,
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
   return (
     <div className="w-80 bg-bg-medium border-r border-bg-light flex flex-col overflow-hidden">
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onRename={contextMenu.trackId ? () => handleEditToggle(contextMenu.trackId) : undefined}
+          onDelete={contextMenu.trackId ? () => handleRemoveTrack(contextMenu.trackId) : undefined}
+          onAddTrack={!contextMenu.trackId ? onAddTrack : undefined}
+          onClose={closeContextMenu}
+        />
+      )}
       {/* Channel Rack Section */}
       <div className="p-5 flex-shrink-0 channel-rack-container">
-        <h3 className="text-lg font-bold text-text-primary mb-4">Channel Rack</h3>
-        <button
-          onClick={onAddTrack}
-          className="w-full mb-4 bg-bg-light hover:bg-gray-600 text-text-primary font-bold py-2 px-4 rounded"
-        >
-          + Add Track
-        </button>
       </div>
       
       {/* Level Meters Section */}
@@ -172,7 +177,15 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
       </div>
       
       {/* Scrollable Tracks List */}
-      <div className="flex-1 overflow-auto scrollbar-thin px-5 pb-5" style={{ maxHeight: '60vh' }}>
+      <div
+        className="flex-1 overflow-auto scrollbar-thin px-5 pb-5"
+        style={{ maxHeight: '60vh' }}
+        onContextMenu={(e) => {
+          if (e.target === e.currentTarget) {
+            showContextMenu(e, null);
+          }
+        }}
+      >
         <div className="flex flex-col">
           {tracks.map((track, index) => (
             <div key={track.id}>
@@ -180,6 +193,7 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
                 <div className="h-1 bg-accent rounded-md mb-2 opacity-75"></div>
               )}
               <div
+                onContextMenu={(e) => showContextMenu(e, track.id)}
                 draggable
                 onDragStart={(e) => {
                   // Only start drag if not clicking on input or editable elements
@@ -203,7 +217,6 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
                   onNameChange={(newName) => handleTrackRename(track.id, newName)}
                   isEditing={editingTrackId === track.id}
                   onEditToggle={() => handleEditToggle(track.id)}
-                  onRemove={() => handleRemoveTrack(track.id)}
                 />
                 
                 {/* Clips for this track */}

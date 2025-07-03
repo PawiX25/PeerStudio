@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import * as Tone from 'tone';
 import Clip from './Clip';
 import generateId from '../utils/generateId';
+import ContextMenu from './ContextMenu';
+import Modal from './Modal';
 
 const clipColors = [
   'bg-orange-400',
@@ -13,8 +15,12 @@ const clipColors = [
 ];
 
 const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop }) => {
-const [isDragOver, setIsDragOver] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [isRenameModalOpen, setRenameModalOpen] = useState(false);
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [newName, setNewName] = useState(track.name);
 
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
@@ -41,99 +47,36 @@ const [isDragOver, setIsDragOver] = useState(false);
     }
   };
 
-  const handleContextMenu = async (event) => {
+  const showContextMenu = (event) => {
     event.preventDefault();
-    
-    // If track has no clips, offer to add audio files
-    if (track.clips.length === 0) {
-      fileInputRef.current.click();
-      return;
-    }
-    
-    // Export/download track audio
-    try {
-      await exportTrackAudio();
-    } catch (error) {
-      console.error('Error exporting track:', error);
-      alert('Error exporting track audio. Please try again.');
-    }
+    event.stopPropagation();
+    setContextMenu({ x: event.clientX, y: event.clientY });
   };
-  
-  const exportTrackAudio = async () => {
-    if (track.clips.length === 0) {
-      alert('No clips to export in this track.');
-      return;
-    }
-    
-    // Calculate total duration needed
-    const totalDuration = track.clips.reduce((max, clip) => {
-      return Math.max(max, (clip.left / 100) + clip.duration);
-    }, 0) + 1; // Add 1 second buffer
-    
-    // Render the track audio offline
-    const renderedBuffer = await Tone.Offline(async ({ transport }) => {
-      const trackChannel = new Tone.Channel().toDestination();
-      
-      // Create temporary players for each clip
-      track.clips.forEach(clip => {
-        const tempPlayer = new Tone.Player(clip.player.buffer).connect(trackChannel);
-        tempPlayer.start(clip.left / 100); // Convert pixels to seconds
-      });
-      
-      transport.start();
-    }, totalDuration);
-    
-    // Convert to WAV and download
-    const wavBuffer = await audioBufferToWav(renderedBuffer._buffer || renderedBuffer);
-    const blob = new Blob([wavBuffer], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${track.name.replace(/[^a-z0-9]/gi, '_')}_export.wav`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+
+  const closeContextMenu = () => setContextMenu(null);
+
+  const renameTrack = () => {
+    setNewName(track.name);
+    setRenameModalOpen(true);
   };
-  
-  // Convert AudioBuffer to WAV format
-  const audioBufferToWav = async (buffer) => {
-    const length = buffer.length;
-    const arrayBuffer = new ArrayBuffer(44 + length * 2);
-    const view = new DataView(arrayBuffer);
-    
-    // WAV header
-    const writeString = (offset, string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-    
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + length * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, buffer.sampleRate, true);
-    view.setUint32(28, buffer.sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, length * 2, true);
-    
-    // Convert audio data
-    const channelData = buffer.getChannelData(0);
-    let offset = 44;
-    for (let i = 0; i < length; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]));
-      view.setInt16(offset, sample * 0x7FFF, true);
-      offset += 2;
+
+  const deleteTrack = () => {
+    setDeleteModalOpen(true);
+  };
+
+  const handleRenameSubmit = (e) => {
+    e.preventDefault();
+    if (newName && newName.trim() !== '' && newName !== track.name) {
+      setTracks((prev) =>
+        prev.map((t) => (t.id === track.id ? { ...t, name: newName.trim() } : t))
+      );
     }
-    
-    return arrayBuffer;
+    setRenameModalOpen(false);
+  };
+
+  const handleDeleteConfirm = () => {
+    setTracks((prev) => prev.filter((t) => t.id !== track.id));
+    setDeleteModalOpen(false);
   };
 
   const handleClipUpdate = (clipId, updates) => {
@@ -160,7 +103,6 @@ const [isDragOver, setIsDragOver] = useState(false);
     e.preventDefault();
     e.stopPropagation();
     
-    // Only update state if it actually changed to avoid unnecessary re-renders
     if (!isDragOver) {
       setIsDragOver(true);
     }
@@ -170,7 +112,6 @@ const [isDragOver, setIsDragOver] = useState(false);
     e.preventDefault();
     e.stopPropagation();
     
-    // Only clear drag over if we're actually leaving the track area
     if (!e.currentTarget.contains(e.relatedTarget)) {
       setIsDragOver(false);
     }
@@ -190,7 +131,6 @@ const [isDragOver, setIsDragOver] = useState(false);
     let newLeft = startLeft + deltaX;
     if (newLeft < 0) newLeft = 0;
 
-    // Use requestAnimationFrame for smoother drop handling
     requestAnimationFrame(() => {
       onClipDrop(clipId, sourceTrackId, track.id, newLeft);
     });
@@ -198,14 +138,155 @@ const [isDragOver, setIsDragOver] = useState(false);
 
   const isLabelObscured = track.clips.some((clip) => clip.left < 50);
 
+  const importAudio = () => {
+    fileInputRef.current && fileInputRef.current.click();
+  };
+
+  const exportTrackAudio = async () => {
+    if (track.clips.length === 0) {
+      alert('No clips to export in this track.');
+      return;
+    }
+
+    const totalDuration =
+      track.clips.reduce(
+        (max, clip) => Math.max(max, clip.left / 100 + clip.duration),
+        0
+      ) + 1;
+
+    try {
+      const renderedBuffer = await Tone.Offline(async ({ transport }) => {
+        const channel = new Tone.Channel().toDestination();
+        track.clips.forEach((clip) => {
+          const tempPlayer = new Tone.Player(clip.player.buffer).connect(channel);
+          tempPlayer.start(clip.left / 100);
+        });
+        transport.start();
+      }, totalDuration);
+
+      const wavBuffer = await audioBufferToWav(renderedBuffer._buffer || renderedBuffer);
+      const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${track.name.replace(/[^a-z0-9]/gi, '_')}_export.wav`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed', err);
+      alert('Error exporting track audio.');
+    }
+  };
+
+  const audioBufferToWav = async (buffer) => {
+    const len = buffer.length;
+    const arrayBuffer = new ArrayBuffer(44 + len * 2);
+    const view = new DataView(arrayBuffer);
+
+    const writeStr = (offset, str) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + len * 2, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, buffer.numberOfChannels || 1, true);
+    view.setUint32(24, buffer.sampleRate, true);
+    view.setUint32(28, buffer.sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, len * 2, true);
+
+    const channelData = buffer.getChannelData(0);
+    let offset = 44;
+    for (let i = 0; i < len; i++) {
+      const s = Math.max(-1, Math.min(1, channelData[i]));
+      view.setInt16(offset, s * 0x7fff, true);
+      offset += 2;
+    }
+
+    return arrayBuffer;
+  };
+
+  const exportAudio = () => exportTrackAudio();
+
   return (
     <div
       className={`relative h-24 bg-bg-medium rounded-lg border-2 ${isDragOver ? 'border-accent' : 'border-transparent hover:border-accent/50'}`}
-      onContextMenu={handleContextMenu}
+      onContextMenu={showContextMenu}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      <Modal isOpen={isRenameModalOpen} onClose={() => setRenameModalOpen(false)}>
+        <form onSubmit={handleRenameSubmit}>
+          <h3 className="text-lg font-bold mb-4">Rename Track</h3>
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="w-full bg-bg-dark text-text-primary px-3 py-2 rounded-md outline-none border border-bg-light focus:border-accent"
+            autoFocus
+          />
+          <div className="flex justify-end gap-3 mt-5">
+            <button
+              type="button"
+              onClick={() => setRenameModalOpen(false)}
+              className="px-4 py-2 rounded-md bg-bg-light hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover"
+            >
+              Rename
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
+        <h3 className="text-lg font-bold mb-2">Delete Track</h3>
+        <p className="text-text-secondary mb-5">
+          Are you sure you want to delete the track "{track.name}"? This action cannot be undone.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setDeleteModalOpen(false)}
+            className="px-4 py-2 rounded-md bg-bg-light hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDeleteConfirm}
+            className="px-4 py-2 rounded-md bg-red-500 hover:bg-red-600 text-white"
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onImportAudio={importAudio}
+          onExportAudio={exportAudio}
+          onRename={renameTrack}
+          onDelete={deleteTrack}
+          onClose={closeContextMenu}
+        />
+      )}
       {!isLabelObscured && (
         <div className="absolute top-2 left-3 text-text-secondary font-bold z-10 pointer-events-none opacity-70">
           {track.name}

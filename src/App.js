@@ -411,7 +411,14 @@ function App() {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Timeline Section - Takes remaining space but allows bottom panel */}
           <div className="flex-1 min-h-0 overflow-hidden">
-            <Timeline tracks={tracks} setTracks={setTracks} timelineChannel={timelineChannel} onClipDrop={handleClipDrop} onAudioImport={handleAudioImport} />
+            <Timeline
+              tracks={tracks}
+              setTracks={setTracks}
+              timelineChannel={timelineChannel}
+              onClipDrop={handleClipDrop}
+              onAudioImport={handleAudioImport}
+              onAddTrack={() => addTrack()}
+            />
           </div>
           {/* Bottom Instrument Panel - Fixed height, responsive for landscape */}
           <div className="flex-shrink-0 bg-bg-medium mobile-landscape-bottom" style={{ height: 'min(40vh, 400px)' }}>
