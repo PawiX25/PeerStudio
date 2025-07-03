@@ -11,13 +11,16 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [isDroppingFiles, setIsDroppingFiles] = useState(false);
   const scrollContainerRef = useRef(null);
+  const rulerRef = useRef(null);
+  const [timelineWidth, setTimelineWidth] = useState(6000);
+  const pixelsPerSecondConst = 100;
 
   useEffect(() => {
     let rafId;
     let isUserScrolling = false;
     let userScrollTimeout;
 
-    const pixelsPerSecond = 100; // how many timeline pixels correspond to one second
+    const pixelsPerSecond = 100;
 
     // Track user scrolling to avoid conflicts with auto-scroll
     const handleUserScroll = () => {
@@ -28,6 +31,12 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
       }, 1000); // Stop auto-scroll for 1 second after user scrolling
     };
 
+    const updateRuler = (scrollLeft) => {
+      if (rulerRef.current) {
+        rulerRef.current.style.transform = `translateX(-${scrollLeft}px)`;
+      }
+    };
+
     const updatePlayhead = () => {
       const positionSeconds = Tone.Transport.seconds;
       const newPosition = positionSeconds * pixelsPerSecond;
@@ -36,16 +45,14 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
       // Only auto-scroll during playback if user isn't manually scrolling
       if (scrollContainerRef.current && 
-          Tone.Transport.state === 'started' && 
-          !isUserScrolling) {
+          Tone.Transport.state === 'started') {
         const containerWidth = scrollContainerRef.current.offsetWidth;
-        const currentScrollLeft = scrollContainerRef.current.scrollLeft;
-        const playheadScreenPosition = newPosition - currentScrollLeft;
-        
-        // Only scroll if playhead is getting close to edges
-        if (playheadScreenPosition > containerWidth * 0.8 || playheadScreenPosition < containerWidth * 0.2) {
-          scrollContainerRef.current.scrollLeft = newPosition - containerWidth / 2;
-        }
+        const targetScroll = Math.max(0, newPosition - containerWidth / 2);
+        const currentScroll = scrollContainerRef.current.scrollLeft;
+        const smoothFactor = 0.08;
+        const newScroll = currentScroll + (targetScroll - currentScroll) * smoothFactor;
+        scrollContainerRef.current.scrollLeft = newScroll;
+        updateRuler(scrollContainerRef.current.scrollLeft);
       }
 
       rafId = requestAnimationFrame(updatePlayhead);
@@ -55,6 +62,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
     const scrollContainer = scrollContainerRef.current;
     if (scrollContainer) {
       scrollContainer.addEventListener('scroll', handleUserScroll, { passive: true });
+      scrollContainer.addEventListener('scroll', () => updateRuler(scrollContainer.scrollLeft));
     }
 
     // kick off the animation loop
@@ -80,6 +88,25 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const calcWidth = () => {
+      let maxClipEnd = 0;
+      tracks.forEach(track => {
+        track.clips.forEach(clip => {
+          const clipEnd = clip.left + clip.duration * pixelsPerSecondConst;
+          if (clipEnd > maxClipEnd) maxClipEnd = clipEnd;
+        });
+      });
+
+      const viewportW = scrollContainerRef.current ? scrollContainerRef.current.offsetWidth : 0;
+      const buffer = 1000;
+      const needed = Math.max(viewportW, maxClipEnd + buffer, playheadPosition + buffer);
+      setTimelineWidth(needed);
+    };
+
+    calcWidth();
+  }, [tracks, playheadPosition]);
 
   const handleDragStart = (e, trackId) => {
     // Prevent track reordering during playback
@@ -245,9 +272,11 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
-      {/* Timeline Ruler - Fixed height */}
-      <div className="flex-shrink-0">
-        <TimelineRuler />
+      {/* Timeline Ruler */}
+      <div className="flex-shrink-0 overflow-hidden relative">
+        <div ref={rulerRef} className="will-change-transform">
+          <TimelineRuler widthPx={timelineWidth} />
+        </div>
       </div>
       
       {/* Timeline Content - Scrollable area */}
@@ -285,7 +314,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
         </div>
         
         {/* Tracks Container */}
-        <div className="space-y-2 p-4 min-h-full">
+        <div className="space-y-2 p-4 min-h-full" style={{ width: `${timelineWidth}px` }}>
           {tracks.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-text-secondary select-none">
               <div className="text-center">

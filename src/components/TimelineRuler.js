@@ -1,9 +1,9 @@
 import React from 'react';
 
-const TimelineRuler = ({ noPadding = false }) => {
+const TimelineRuler = ({ noPadding = false, widthPx = 6000 }) => {
   const pixelsPerSecond = 100;
-  const totalSeconds = 60 * 5; // 5 minutes
-  const totalWidth = totalSeconds * pixelsPerSecond;
+  const totalSeconds = Math.ceil(widthPx / pixelsPerSecond);
+  const totalWidth = widthPx;
   const majorMarkInterval = 5; // seconds
   const minorMarkInterval = 1; // seconds
 
