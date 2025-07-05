@@ -24,9 +24,9 @@ const LevelMeter = ({ label, level, peak, color = "bg-green-500", compact = fals
     return peak >= segmentLevel - segmentHeight && peak < segmentLevel;
   };
 
-  const meterHeight = compact ? 'h-16' : 'h-32';
-  const meterWidth = compact ? 'w-3' : 'w-4';
-  const labelSize = compact ? 'text-xs' : 'text-xs';
+  const meterHeight = compact ? 'h-16' : 'h-48';
+  const meterWidth = compact ? 'w-3' : 'w-6';
+  const labelSize = compact ? 'text-xs' : 'text-sm';
   const displaySegments = compact ? 10 : segments;
   const compactSegmentHeight = 100 / displaySegments;
   
@@ -69,11 +69,11 @@ const LevelMeter = ({ label, level, peak, color = "bg-green-500", compact = fals
       
       {/* Numeric display */}
       {!compact && (
-        <div className="mt-2 text-xs text-center">
-          <div className="text-text-secondary">
+        <div className="mt-3 text-center">
+          <div className="text-text-secondary text-sm font-medium">
             {level > 0 ? `-${(100 - level).toFixed(0)}dB` : '-∞'}
           </div>
-          <div className="text-red-400 text-xs">
+          <div className="text-red-400 text-sm font-bold">
             {peak > 90 ? 'CLIP' : ''}
           </div>
         </div>
@@ -91,7 +91,7 @@ const LevelMeter = ({ label, level, peak, color = "bg-green-500", compact = fals
   );
 };
 
-const LevelMeters = ({ tracks, compact = false }) => {
+const LevelMeters = ({ tracks, compact = false, masterOnly = false }) => {
   const [masterLevel, setMasterLevel] = useState(0);
   const [masterPeak, setMasterPeak] = useState(0);
   const [trackLevels, setTrackLevels] = useState({});
@@ -259,7 +259,22 @@ const LevelMeters = ({ tracks, compact = false }) => {
     };
   }, []);
 
+  if (masterOnly) {
+    return (
+      <div className="flex justify-center">
+        <LevelMeter
+          label="Master"
+          level={masterLevel}
+          peak={masterPeak}
+          color="bg-blue-500"
+          compact={compact}
+        />
+      </div>
+    );
+  }
+
   if (compact) {
+    
     return (
       <div className="overflow-auto scrollbar-thin max-h-40">
         <div className="flex gap-2 justify-start overflow-x-auto pb-2">
@@ -283,71 +298,61 @@ const LevelMeters = ({ tracks, compact = false }) => {
               compact={true}
             />
           ))}
+          
+          {tracks.length === 0 && (
+            <div className="flex items-center text-text-secondary text-xs px-4">
+              <p>No tracks for monitoring</p>
+            </div>
+          )}
         </div>
-        
-        {tracks.length === 0 && (
-          <div className="text-center text-text-secondary text-xs py-4">
-            <p>No tracks for monitoring</p>
-          </div>
-        )}
       </div>
     );
   }
 
   return (
-    <div className="bg-bg-dark p-4 rounded-lg h-full">
-      <h3 className="text-text-primary text-lg font-bold mb-4 text-center">Level Meters</h3>
-      
-      <div className="flex gap-4 justify-center overflow-x-auto scrollbar-thin">
-        {/* Master Level Meter */}
-        <LevelMeter
-          label="Master"
-          level={masterLevel}
-          peak={masterPeak}
-          color="bg-blue-500"
-        />
-        
-        {/* Track Level Meters */}
-        {tracks.map(track => (
-          <LevelMeter
-            key={track.id}
-            label={track.name.length > 8 ? track.name.substring(0, 8) + '...' : track.name}
-            level={trackLevels[track.id] || 0}
-            peak={trackPeaks[track.id] || 0}
-            color="bg-green-500"
-          />
-        ))}
-      </div>
-      
-      {tracks.length === 0 && (
-        <div className="text-center text-text-secondary mt-8">
-          <p>No tracks available for level monitoring.</p>
-          <p className="text-sm mt-2">Add tracks to see their audio levels.</p>
+    <div className="h-full flex flex-col">
+      {tracks.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="mb-6">
+            <LevelMeter
+              label="Master"
+              level={masterLevel}
+              peak={masterPeak}
+              color="bg-blue-500"
+            />
+          </div>
+          <div className="text-center text-text-secondary">
+            <p>No tracks available for level monitoring.</p>
+            <p className="text-sm mt-2 opacity-70">Add tracks to see their audio levels.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center min-h-0 overflow-x-auto overflow-y-hidden">
+          <div className="flex gap-4 mx-auto">
+            {/* Master Level Meter */}
+            <div className="flex-shrink-0">
+              <LevelMeter
+                label="Master"
+                level={masterLevel}
+                peak={masterPeak}
+                color="bg-blue-500"
+              />
+            </div>
+            
+            {/* Track Level Meters */}
+            {tracks.map(track => (
+              <div key={track.id} className="flex-shrink-0">
+                <LevelMeter
+                  label={track.name.length > 8 ? track.name.substring(0, 8) + '...' : track.name}
+                  level={trackLevels[track.id] || 0}
+                  peak={trackPeaks[track.id] || 0}
+                  color="bg-green-500"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
-      
-      {/* Legend */}
-      <div className="mt-6 bg-bg-medium p-3 rounded">
-        <h4 className="text-text-primary font-bold text-sm mb-2">Level Guide</h4>
-        <div className="grid grid-cols-2 gap-2 text-xs text-text-secondary">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-400 rounded"></div>
-            <span>Low (-∞ to -50dB)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded"></div>
-            <span>Normal (-50 to -25dB)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-            <span>Warning (-25 to -10dB)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded"></div>
-            <span>Danger (-10dB to 0dB)</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

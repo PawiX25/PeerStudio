@@ -8,7 +8,7 @@ import StepSequencer from './components/StepSequencer';
 import Synthesizer from './components/Synthesizer';
 import AudioImport from './components/AudioImport';
 import BassInstruments from './components/BassInstruments';
-import VolumeMixer from './components/VolumeMixer';
+
 import ExportOptions from './components/ExportOptions';
 import Tabs, { Tab } from './components/Tabs';
 import * as Tone from 'tone';
@@ -441,11 +441,6 @@ function App() {
               </Tab>
               <Tab label="Audio Import">
                 <AudioImport onImport={handleAudioImport} />
-              </Tab>
-              <Tab label="Volume Mixer">
-                <div className="mobile-landscape-volume">
-                  <VolumeMixer tracks={tracks} />
-                </div>
               </Tab>
               <Tab label="Export Options">
                 <ExportOptions tracks={tracks} />

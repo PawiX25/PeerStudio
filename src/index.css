@@ -501,12 +501,33 @@ input:focus, input:active {
 
 @media screen and (max-width: 1024px) and (orientation: landscape) {
   .mobile-landscape-sidebar {
-    width: 200px;
+    flex-shrink: 0;
   }
   
   .mobile-landscape-compact {
     font-size: 0.75rem;
   }
+}
+
+@media screen and (max-width: 768px) {
+  .mobile-force-collapsed {
+    width: 32px !important;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out forwards;
 }
 
 code {
