@@ -205,13 +205,9 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
               >
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-      </div>
-      
-
+            </div>
           </button>
         </div>
-        
-
       </div>
       
       {isCollapsed && (
@@ -234,13 +230,13 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
             </div>
           </div>
           
-=          <div className="flex-1 flex items-center justify-center my-4 min-h-[200px]">
+          <div className="flex-1 flex items-center justify-center my-4 min-h-[200px]">
             <div className="transform scale-125">
               <LevelMeters tracks={tracks} compact={false} masterOnly={true} />
             </div>
           </div>
           
-=          <div className="mb-3">
+          <div className="mb-3">
             <button
               onClick={() => setMasterMuted(!masterMuted)}
               className={`w-full p-3 rounded-lg text-lg font-bold transition-all transform hover:scale-105 active:scale-95 ${
