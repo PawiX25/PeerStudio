@@ -212,21 +212,20 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
       
       {isCollapsed && (
         <div className="flex-1 flex flex-col p-3 animate-fadeIn">
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="flex flex-col items-center justify-center bg-bg-dark rounded-lg p-3">
+          <div className="space-y-2 mb-4">
+            <div className="flex flex-col items-center justify-center bg-bg-dark rounded-lg p-2">
               <div className="text-xs text-text-secondary font-bold">TRACKS</div>
               <div className="text-lg font-bold text-text-primary">{tracks.length}</div>
             </div>
-            <div className="flex flex-col items-center justify-center bg-bg-dark rounded-lg p-3">
+            <div className="flex flex-col items-center justify-center bg-bg-dark rounded-lg p-2">
               <div className="text-xs text-text-secondary font-bold">CLIPS</div>
               <div className="text-lg font-bold text-text-primary">{getTotalClips()}</div>
             </div>
-          </div>
-          
-          <div className="flex flex-col items-center justify-center mb-4 bg-bg-dark rounded-lg p-3">
-            <div className="text-xs text-text-secondary font-bold">DURATION</div>
-            <div className="text-lg font-bold text-text-primary">
-              {getProjectDuration() > 0 ? `${getProjectDuration().toFixed(1)}s` : '0.0s'}
+            <div className="flex flex-col items-center justify-center bg-bg-dark rounded-lg p-2">
+              <div className="text-xs text-text-secondary font-bold">DURATION</div>
+              <div className="text-lg font-bold text-text-primary">
+                {getProjectDuration() > 0 ? `${getProjectDuration().toFixed(1)}s` : '0.0s'}
+              </div>
             </div>
           </div>
           
