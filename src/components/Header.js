@@ -11,6 +11,10 @@ const Header = ({
   onRemotePeerIdChange,
   onConnect,
   isConnected,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }) => {
   const [copied, setCopied] = useState(false);
   
@@ -22,7 +26,6 @@ const Header = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
       textArea.value = peerId;
       document.body.appendChild(textArea);
@@ -76,6 +79,34 @@ const Header = ({
         </div>
       </div>
       <div className="flex items-center gap-4">
+        {/* Undo/Redo buttons */}
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={onUndo} 
+            disabled={!canUndo}
+            className={`p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors ${
+              canUndo ? 'bg-bg-light hover:bg-accent text-text-primary' : 'bg-bg-dark text-text-secondary cursor-not-allowed'
+            }`}
+            title="Undo (Ctrl+Z)"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </button>
+          <button 
+            onClick={onRedo} 
+            disabled={!canRedo}
+            className={`p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors ${
+              canRedo ? 'bg-bg-light hover:bg-accent text-text-primary' : 'bg-bg-dark text-text-secondary cursor-not-allowed'
+            }`}
+            title="Redo (Ctrl+Y)"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+            </svg>
+          </button>
+        </div>
+        <div className="w-px h-8 bg-bg-light"></div>
         <button onClick={onPlay} className="bg-bg-light hover:bg-green-600 text-text-primary font-bold p-3 rounded-full w-12 h-12 flex items-center justify-center transition-colors">
           <div className="w-0 h-0 border-l-[20px] border-l-green-500 border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent ml-1"></div>
         </button>

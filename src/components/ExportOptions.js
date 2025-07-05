@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import * as Tone from 'tone';
-import JSZip from 'jszip';
 
 const ExportOptions = ({ tracks }) => {
   const [isExporting, setIsExporting] = useState(false);

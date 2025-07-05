@@ -12,14 +12,30 @@ const drumNames = ['Kick', 'Snare', 'Hat', 'Bass'];
 const initialPattern = Array.from({ length: drumNames.length }, () => Array(16).fill(0));
 
 const StepSequencer = ({ onExport, timelineChannel, sequencerChannel }) => {
-  const [pattern, setPattern] = useState(initialPattern);
-  const patternRef = useRef(initialPattern);
+  const loadPattern = () => {
+    const saved = localStorage.getItem('stepSequencerPattern');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return initialPattern;
+  };
+
+  const [pattern, setPattern] = useState(loadPattern);
+  const patternRef = useRef(loadPattern());
   const [currentStep, setCurrentStep] = useState(0);
   const synths = useRef([]);
   const clock = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('stepSequencerPattern', JSON.stringify(pattern));
+  }, [pattern]);
   
   useEffect(() => {
-    synths.current = drumSynthConfigs.map(cfg => new cfg.type(cfg.options).connect(sequencerChannel.current));
+    synths.current = drumSynthConfigs.map(cfg => {
+      const synth = new cfg.type(cfg.options);
+      synth.volume.value = -6;
+      return synth.connect(sequencerChannel.current);
+    });
     return () => synths.current.forEach(s => s.dispose());
   }, [sequencerChannel]);
 

@@ -4,7 +4,7 @@ import 'react-piano/dist/styles.css';
 import * as Tone from 'tone';
 
 const Piano = ({ onExport }) => {
-  const synth = useRef(new Tone.Synth().toDestination());
+  const synth = useRef(new Tone.Synth({ volume: -6 }).toDestination());
 
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState([]);
@@ -96,7 +96,7 @@ const Piano = ({ onExport }) => {
               onClick={startRecording}
               className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
             >
-              🎹 Record
+              Record
             </button>
           )}
           
@@ -118,7 +118,7 @@ const Piano = ({ onExport }) => {
             className="bg-accent hover:bg-accent-hover text-bg-dark font-bold py-2 px-4 rounded"
             disabled={recording.length === 0}
           >
-            🎵 Export to Timeline
+            Export to Timeline
           </button>
         </div>
       </div>

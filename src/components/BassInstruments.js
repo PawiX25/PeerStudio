@@ -4,32 +4,44 @@ import 'react-piano/dist/styles.css';
 import * as Tone from 'tone';
 
 const BassInstruments = ({ onExport }) => {
-  const [bassType, setBassType] = useState('electric');
+  const loadSettings = () => {
+    const saved = localStorage.getItem('bassSettings');
+    if (saved) {
+      const settings = JSON.parse(saved);
+      return settings;
+    }
+    return {
+      bassType: 'electric',
+      params: {
+        volume: 0,
+        attack: 0.01,
+        decay: 0.3,
+        sustain: 0.5,
+        release: 1.2,
+        distortion: 0,
+        brightness: 0.5,
+        resonance: 0.3,
+        dampening: 0.2,
+        cutoff: 800,
+        resonanceQ: 2,
+        oscMix: 0.5
+      }
+    };
+  };
+
+  const savedSettings = loadSettings();
+  const [bassType, setBassType] = useState(savedSettings.bassType);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState([]);
   const activeNotesRef = useRef([]);
   const recordStartRef = useRef(0);
   const synthRef = useRef(null);
+  const [params, setParams] = useState(savedSettings.params);
 
-  // Bass-specific parameters
-  const [params, setParams] = useState({
-    // Common
-    volume: -6,
-    attack: 0.01,
-    decay: 0.3,
-    sustain: 0.5,
-    release: 1.2,
-    // Electric bass specific
-    distortion: 0,
-    brightness: 0.5,
-    // Acoustic bass specific
-    resonance: 0.3,
-    dampening: 0.2,
-    // Synth bass specific
-    cutoff: 800,
-    resonanceQ: 2,
-    oscMix: 0.5
-  });
+  useEffect(() => {
+    const settings = { bassType, params };
+    localStorage.setItem('bassSettings', JSON.stringify(settings));
+  }, [bassType, params]);
 
   const createBass = useCallback(() => {
     if (synthRef.current) {
@@ -38,10 +50,9 @@ const BassInstruments = ({ onExport }) => {
 
     switch (bassType) {
       case 'electric':
-        // Electric bass simulation with distortion
         const distortion = new Tone.Distortion(params.distortion).toDestination();
         const eq = new Tone.EQ3({
-          low: 2,
+          low: 4,
           mid: params.brightness * 2 - 1,
           high: params.brightness - 0.5
         }).connect(distortion);
@@ -66,7 +77,6 @@ const BassInstruments = ({ onExport }) => {
         break;
 
       case 'acoustic':
-        // Acoustic upright bass simulation
         const reverb = new Tone.Reverb({
           decay: 2,
           wet: params.resonance
@@ -98,7 +108,6 @@ const BassInstruments = ({ onExport }) => {
         break;
 
       case 'synth':
-        // Analog-style synth bass
         const synthFilter = new Tone.Filter({
           frequency: params.cutoff,
           Q: params.resonanceQ,
@@ -140,8 +149,7 @@ const BassInstruments = ({ onExport }) => {
   }, [createBass]);
 
   const playNote = (midiNumber) => {
-    // Transpose bass notes down by 2 octaves for realistic bass range
-    const bassNote = Tone.Midi(midiNumber - 24).toFrequency();
+    const bassNote = Tone.Midi(midiNumber - 12).toFrequency();
     synthRef.current.triggerAttack(bassNote);
 
     if (isRecording) {
@@ -204,7 +212,6 @@ const BassInstruments = ({ onExport }) => {
     <div className="bg-bg-medium p-4 rounded-lg"
          onContextMenu={(e) => e.preventDefault()}
          onDoubleClick={(e) => e.preventDefault()}>
-      {/* Bass Type Selector */}
       <div className="mb-4">
         <label className="block text-text-primary mb-2">Bass Type:</label>
         <select
@@ -218,15 +225,13 @@ const BassInstruments = ({ onExport }) => {
         </select>
       </div>
 
-      {/* Parameter Controls */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        {/* Common Controls */}
         <div>
           <label className="block text-text-secondary text-sm mb-1">Volume</label>
           <input
             type="range"
-            min="-40"
-            max="6"
+            min="-20"
+            max="12"
             value={params.volume}
             onChange={(e) => updateParam('volume', parseInt(e.target.value))}
             className="w-full accent-emerald-400"
@@ -276,7 +281,6 @@ const BassInstruments = ({ onExport }) => {
           <span className="text-xs text-text-secondary">{params.release}s</span>
         </div>
 
-        {/* Electric Bass Specific */}
         {bassType === 'electric' && (
           <>
             <div>
@@ -309,7 +313,6 @@ const BassInstruments = ({ onExport }) => {
           </>
         )}
 
-        {/* Acoustic Bass Specific */}
         {bassType === 'acoustic' && (
           <>
             <div>
@@ -342,7 +345,6 @@ const BassInstruments = ({ onExport }) => {
           </>
         )}
 
-        {/* Synth Bass Specific */}
         {bassType === 'synth' && (
           <>
             <div>
@@ -389,7 +391,6 @@ const BassInstruments = ({ onExport }) => {
         )}
       </div>
 
-      {/* Piano Interface - limited to bass range */}
       <div onContextMenu={(e) => e.preventDefault()} onDoubleClick={(e) => e.preventDefault()}>
         <ReactPiano
           noteRange={{ first: MidiNumbers.fromNote('C3'), last: MidiNumbers.fromNote('C5') }}
@@ -399,33 +400,46 @@ const BassInstruments = ({ onExport }) => {
         />
       </div>
 
-      {/* Controls */}
       <div className="flex justify-between mt-4">
-        <div>
+        <div className="flex items-center gap-2">
           {isRecording ? (
             <button
               onClick={stopRecording}
-              className="bg-red-600 hover:bg-red-700 text-bg-dark font-bold py-2 px-4 rounded mr-2"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2"
             >
-              Stop
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              Stop Recording
             </button>
           ) : (
             <button
               onClick={startRecording}
-              className="bg-green-600 hover:bg-green-700 text-bg-dark font-bold py-2 px-4 rounded mr-2"
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
             >
               Record
             </button>
           )}
+          
+          <button
+            onClick={() => setRecording([])}
+            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+            disabled={recording.length === 0}
+          >
+            Clear
+          </button>
         </div>
 
-        <button
-          onClick={() => onExport(recording)}
-          className="bg-accent hover:bg-accent-hover text-bg-dark font-bold py-2 px-4 rounded"
-          disabled={recording.length === 0}
-        >
-          Export to Timeline
-        </button>
+        <div className="flex items-center gap-4">
+          <span className="text-text-secondary text-sm">
+            {recording.length} note{recording.length !== 1 ? 's' : ''} recorded
+          </span>
+          <button
+            onClick={() => onExport(recording, bassType, params)}
+            className="bg-accent hover:bg-accent-hover text-bg-dark font-bold py-2 px-4 rounded"
+            disabled={recording.length === 0}
+          >
+            Export to Timeline
+          </button>
+        </div>
       </div>
     </div>
   );

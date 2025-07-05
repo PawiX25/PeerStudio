@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import JSZip from 'jszip';
 import Sidebar from './components/Sidebar';
 import Timeline from './components/Timeline';
 import Header from './components/Header';
@@ -37,12 +36,20 @@ function App() {
   const peerRef = useRef(null);
   const connectionsRef = useRef([]);
   const [isConnected, setIsConnected] = useState(false);
+  
+  const [history, setHistory] = useState([tracks]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const maxHistorySize = 50;
 
   const synthesizeSequencerPattern = useCallback(async (pattern, skipBroadcast = false, clipId = null) => {
     const loopDuration = Tone.Time('1m').toSeconds();
     
     const buffer = await Tone.Offline(async ({ transport }) => {
-      const synths = drumSynthConfigs.map((config) => new config.type(config.options).toDestination());
+      const synths = drumSynthConfigs.map((config) => {
+        const synth = new config.type(config.options);
+        synth.volume.value = -6;
+        return synth.toDestination();
+      });
       
       new Tone.Sequence(
         (time, col) => {
@@ -125,6 +132,69 @@ function App() {
     };
   }, [setupConnectionHandlers]);
 
+  const pushToHistory = useCallback((newTracks) => {
+    setHistory(prev => {
+      const newHistory = [...prev.slice(0, historyIndex + 1), newTracks];
+      if (newHistory.length > maxHistorySize) {
+        newHistory.shift();
+      }
+      return newHistory;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, maxHistorySize - 1));
+  }, [historyIndex]);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const previousTracks = history[historyIndex - 1];
+      setTracks(previousTracks);
+      setHistoryIndex(historyIndex - 1);
+    }
+  }, [history, historyIndex]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextTracks = history[historyIndex + 1];
+      setTracks(nextTracks);
+      setHistoryIndex(historyIndex + 1);
+    }
+  }, [history, historyIndex]);
+
+  const handlePlay = useCallback(() => {
+    if (Tone.context.state !== 'running') Tone.context.resume();
+    timelineChannel.current.mute = false;
+    sequencerChannel.current.mute = true;
+    Tone.Transport.start();
+  }, []);
+
+  const handlePause = useCallback(() => {
+    Tone.Transport.pause();
+    timelineChannel.current.mute = false;
+    sequencerChannel.current.mute = true;
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isInputElement = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+      
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.shiftKey || e.key === 'y')) {
+        e.preventDefault();
+        handleRedo();
+      } else if (e.key === ' ' && !isInputElement) {
+        e.preventDefault();
+        if (Tone.Transport.state === 'started') {
+          handlePause();
+        } else {
+          handlePlay();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo, handlePlay, handlePause]);
 
   const connectToPeer = () => {
     if (!remotePeerId || !peerRef.current) return;
@@ -134,32 +204,6 @@ function App() {
       setupConnectionHandlers(conn);
       setIsConnected(true);
     });
-  };
-
-  // Load ZIP project
-  const loadZipProject = (file) => {
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const zip = await JSZip.loadAsync(event.target.result);
-        const projectFile = zip.file('project.json');
-        if (projectFile) {
-          const projectContent = await projectFile.async('string');
-          const projectData = JSON.parse(projectContent);
-          console.log('Project Data:', projectData);
-          alert('Project structure loaded! Re-import audio manually.');
-          // Load project data into state if needed
-        } else {
-          alert('project.json not found in the ZIP file');
-        }
-      } catch (error) {
-        console.error('Error loading ZIP project:', error);
-        alert('Error loading ZIP project.');
-      }
-    };
-    reader.readAsArrayBuffer(file);
   };
 
   const broadcastMessage = (msg) => {
@@ -172,28 +216,20 @@ function App() {
 
   const addTrack = (name, trackId = null) => {
     const newTrack = { id: trackId || generateId(), name: name || `Track ${tracks.length + 1}`, clips: [] };
-    setTracks(prev => [...prev, newTrack]);
+    setTracks(prev => {
+      const newTracks = [...prev, newTrack];
+      pushToHistory(newTracks);
+      return newTracks;
+    });
   };
 
-  const handlePlay = () => {
-    if (Tone.context.state !== 'running') Tone.context.resume();
-    timelineChannel.current.mute = false;
-    sequencerChannel.current.mute = true;
-    Tone.Transport.start();
-  };
 
-  const handlePause = () => {
-    Tone.Transport.pause();
-    timelineChannel.current.mute = false;
-    sequencerChannel.current.mute = true;
-  };
-
-  const handleStop = () => {
+  const handleStop = useCallback(() => {
     Tone.Transport.stop();
     Tone.Transport.seconds = 0;
     timelineChannel.current.mute = false;
     sequencerChannel.current.mute = true;
-  };
+  }, []);
 
   const handleRecord = () => {
     if (isRecording) {
@@ -215,7 +251,7 @@ function App() {
     const recordingDuration = recording.reduce((max, note) => Math.max(max, note.time + note.duration), 0) + 0.5;
 
     const buffer = await Tone.Offline(async ({ transport }) => {
-      const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+      const synth = new Tone.PolySynth(Tone.Synth, { volume: -6 }).toDestination();
       new Tone.Part((time, value) => {
         synth.triggerAttackRelease(Tone.Midi(value.midi).toFrequency(), value.duration, time, value.velocity);
       }, recording).start(0);
@@ -229,39 +265,220 @@ function App() {
       broadcastMessage({ type: 'pianoRecording', recording, clipId: resolvedClipId });
     }
   };
+
+  const synthesizeBassRecording = async (recording, skipBroadcast = false, clipId = null, bassType = 'electric', params = {}) => {
+    if (!recording || recording.length === 0) return;
+
+    const recordingDuration = recording.reduce((max, note) => Math.max(max, note.time + note.duration), 0) + 0.5;
+
+    const buffer = await Tone.Offline(async ({ transport }) => {
+      let synth;
+      
+      const baseVolume = params.volume !== undefined ? params.volume : 0;
+      
+      switch (bassType) {
+        case 'electric':
+          synth = new Tone.MonoSynth({
+            oscillator: { type: 'sawtooth' },
+            filter: { frequency: 800 + (params.brightness || 0.5) * 1200, Q: 2, type: 'lowpass' },
+            envelope: {
+              attack: params.attack || 0.01,
+              decay: params.decay || 0.3,
+              sustain: params.sustain || 0.5,
+              release: params.release || 1.2
+            },
+            volume: baseVolume
+          }).toDestination();
+          break;
+        case 'acoustic':
+          synth = new Tone.MonoSynth({
+            oscillator: { type: 'triangle' },
+            filter: { frequency: 300, Q: 1, type: 'lowpass' },
+            envelope: {
+              attack: (params.attack || 0.01) * 2,
+              decay: (params.decay || 0.3) * 1.5,
+              sustain: (params.sustain || 0.5) * 0.7,
+              release: (params.release || 1.2) * 1.5
+            },
+            volume: baseVolume
+          }).toDestination();
+          break;
+        case 'synth':
+          synth = new Tone.MonoSynth({
+            oscillator: {
+              type: 'custom',
+              partials: [1, params.oscMix || 0.5, (params.oscMix || 0.5) * 0.5, (params.oscMix || 0.5) * 0.25]
+            },
+            filter: {
+              frequency: params.cutoff || 800,
+              Q: params.resonanceQ || 2,
+              type: 'lowpass'
+            },
+            envelope: {
+              attack: params.attack || 0.01,
+              decay: params.decay || 0.3,
+              sustain: params.sustain || 0.5,
+              release: params.release || 1.2
+            },
+            volume: baseVolume
+          }).toDestination();
+          break;
+        default:
+          synth = new Tone.MonoSynth({ volume: baseVolume }).toDestination();
+      }
+
+      new Tone.Part((time, value) => {
+        const bassNote = Tone.Midi(value.midi - 12).toFrequency();
+        synth.triggerAttackRelease(bassNote, value.duration, time, value.velocity);
+      }, recording).start(0);
+      transport.start();
+    }, recordingDuration);
+
+    const resolvedClipId = clipId || generateId();
+    addBufferToTrack(buffer, 'Bass', resolvedClipId);
+
+    if (!skipBroadcast) {
+      broadcastMessage({ type: 'bassRecording', recording, clipId: resolvedClipId, bassType, params });
+    }
+  };
   const handlePianoExport = (recording) => {
     const validRecording = recording.filter(note => note.duration > 0);
     if (validRecording.length === 0) return;
     synthesizePianoRecording(validRecording, true);
   };
 
-  // Generic handler for all instrument exports
+  const synthesizeSynthRecording = async (recording, skipBroadcast = false, clipId = null, synthType = 'subtractive', params = {}) => {
+    if (!recording || recording.length === 0) return;
+
+    const recordingDuration = recording.reduce((max, note) => Math.max(max, note.time + note.duration), 0) + 0.5;
+    
+    const generateWavetable = (position) => {
+        const harmonics = [];
+        for (let i = 1; i <= 16; i++) {
+            const amplitude = Math.sin(position * Math.PI + i * 0.5) * (1 / i);
+            harmonics.push(amplitude);
+        }
+        return harmonics;
+    };
+
+    const buffer = await Tone.Offline(async ({ transport }) => {
+      let synth;
+      const baseVolume = params.volume || -6;
+      
+      switch (synthType) {
+        case 'subtractive':
+          synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: {
+              type: params.oscType || 'sawtooth',
+              detune: params.oscDetune || 0
+            },
+            filter: {
+              frequency: params.filterFreq || 2000,
+              Q: params.filterQ || 1,
+              type: params.filterType || 'lowpass'
+            },
+            envelope: {
+              attack: params.attack || 0.1,
+              decay: params.decay || 0.2,
+              sustain: params.sustain || 0.5,
+              release: params.release || 1
+            },
+            volume: baseVolume
+          }).toDestination();
+          break;
+        case 'fm':
+          synth = new Tone.PolySynth(Tone.FMSynth, {
+            harmonicity: params.fmRatio || 2,
+            modulationIndex: params.fmIndex || 10,
+            oscillator: { type: params.oscType || 'sine' },
+            envelope: {
+              attack: params.attack || 0.1,
+              decay: params.decay || 0.2,
+              sustain: params.sustain || 0.5,
+              release: params.release || 1
+            },
+            volume: baseVolume
+          }).toDestination();
+          break;
+        case 'wavetable':
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: {
+                    type: 'custom',
+                    partials: generateWavetable(params.wavetablePos || 0)
+                },
+                filter: {
+                    frequency: params.filterFreq || 2000,
+                    Q: params.filterQ || 1,
+                    type: params.filterType || 'lowpass'
+                },
+                envelope: {
+                    attack: params.attack || 0.1,
+                    decay: params.decay || 0.2,
+                    sustain: params.sustain || 0.5,
+                    release: params.release || 1
+                },
+                volume: baseVolume
+            }).toDestination();
+            break;
+        case 'granular':
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: {
+                    type: 'pulse',
+                    width: 0.1
+                },
+                filter: {
+                    frequency: params.filterFreq || 2000,
+                    Q: (params.filterQ || 1) * 2,
+                    type: 'bandpass'
+                },
+                envelope: {
+                    attack: (params.attack || 0.1) * 0.5,
+                    decay: (params.decay || 0.2) * 0.3,
+                    sustain: (params.sustain || 0.5) * 0.7,
+                    release: (params.release || 1) * 2
+                },
+                volume: baseVolume
+            }).toDestination();
+            break;
+        default:
+          synth = new Tone.PolySynth(Tone.Synth, { volume: baseVolume }).toDestination();
+      }
+
+      new Tone.Part((time, value) => {
+        synth.triggerAttackRelease(Tone.Midi(value.midi).toFrequency(), value.duration, time, value.velocity);
+      }, recording).start(0);
+      transport.start();
+    }, recordingDuration);
+
+    const resolvedClipId = clipId || generateId();
+    addBufferToTrack(buffer, 'Synthesizer', resolvedClipId);
+
+    if (!skipBroadcast) {
+      broadcastMessage({ type: 'synthRecording', recording, clipId: resolvedClipId, synthType, params });
+    }
+  };
+
   const handleInstrumentExport = (recording, instrumentName = 'Instrument') => {
     const validRecording = recording.filter(note => note.duration > 0);
     if (validRecording.length === 0) return;
     synthesizePianoRecording(validRecording, true, null, instrumentName);
   };
 
-  // Handler for audio file imports
   const handleAudioImport = async (file) => {
     try {
-      // Create a URL for the file to load it properly
       const url = URL.createObjectURL(file);
       
-      // Create a Tone.Player which handles loading and provides proper buffer access
       const player = new Tone.Player(url, () => {
-        // Once loaded, create the clip and add to track
         const randomColor = clipColors[Math.floor(Math.random() * clipColors.length)];
         const newClip = {
           id: generateId(),
-          name: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
+          name: file.name.replace(/\.[^/.]+$/, ''),
           player,
           duration: player.buffer.duration,
           left: 0,
           color: randomColor,
         };
         
-        // Add to track
         setTracks((prevTracks) => {
           const existingNames = new Set(prevTracks.map(t => t.name));
           let newName = 'Audio Import';
@@ -272,14 +489,14 @@ function App() {
           }
           
           const newTrack = { id: generateId(), name: newName, clips: [newClip] };
-          return [...prevTracks, newTrack];
+          const newTracks = [...prevTracks, newTrack];
+          pushToHistory(newTracks);
+          return newTracks;
         });
         
-        // Connect and sync the player
         player.connect(timelineChannel.current);
         player.sync().start(0);
         
-        // Clean up the URL
         URL.revokeObjectURL(url);
       });
       
@@ -319,6 +536,7 @@ function App() {
       if (trackIndex === -1) {
         const newTrack = { id: generateId(), name: newName, clips: [createClip(newName)] };
         tracksCopy.push(newTrack);
+        pushToHistory(tracksCopy);
         return tracksCopy;
       }
 
@@ -327,6 +545,7 @@ function App() {
         track.clips = [...track.clips, createClip(track.name)];
         tracksCopy[trackIndex] = track;
       }
+      pushToHistory(tracksCopy);
       return tracksCopy;
     });
 
@@ -334,7 +553,6 @@ function App() {
   };
 
   const handleClipDrop = (clipId, sourceTrackId, destinationTrackId, newLeft) => {
-    // Prevent clip drops during playback to avoid audio conflicts
     if (Tone.Transport.state === 'started') {
       return;
     }
@@ -359,7 +577,6 @@ function App() {
 
       clipToMove.left = newLeft;
       
-      // Safely update audio player timing only when not playing
       try {
         if (clipToMove.player && clipToMove.player.loaded) {
           clipToMove.player.unsync();
@@ -380,6 +597,7 @@ function App() {
         newTracks[sourceTrackIndex].clips.push(clipToMove);
       }
 
+      pushToHistory(newTracks);
       return newTracks;
     });
 
@@ -402,11 +620,15 @@ function App() {
         onRemotePeerIdChange={setRemotePeerId}
         onConnect={connectToPeer}
         isConnected={isConnected}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={historyIndex > 0}
+        canRedo={historyIndex < history.length - 1}
         className="mobile-landscape-header"
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="mobile-landscape-sidebar">
-          <Sidebar onAddTrack={() => addTrack()} tracks={tracks} setTracks={setTracks} />
+          <Sidebar onAddTrack={() => addTrack()} tracks={tracks} setTracks={setTracks} pushToHistory={pushToHistory} />
         </div>
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Timeline Section - Takes remaining space but allows bottom panel */}
@@ -418,6 +640,7 @@ function App() {
               onClipDrop={handleClipDrop}
               onAudioImport={handleAudioImport}
               onAddTrack={() => addTrack()}
+              pushToHistory={pushToHistory}
             />
           </div>
           {/* Bottom Instrument Panel - Fixed height, responsive for landscape */}
@@ -434,10 +657,10 @@ function App() {
                 <Piano onExport={handlePianoExport} />
               </Tab>
               <Tab label="Synthesizers">
-                <Synthesizer onExport={(recording) => handleInstrumentExport(recording, 'Synthesizer')} />
+                <Synthesizer onExport={(recording, synthType, params) => synthesizeSynthRecording(recording, true, null, synthType, params)} />
               </Tab>
               <Tab label="Bass">
-                <BassInstruments onExport={(recording) => handleInstrumentExport(recording, 'Bass')} />
+                <BassInstruments onExport={(recording, bassType, params) => synthesizeBassRecording(recording, true, null, bassType, params)} />
               </Tab>
               <Tab label="Audio Import">
                 <AudioImport onImport={handleAudioImport} />

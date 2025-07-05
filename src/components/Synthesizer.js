@@ -4,33 +4,45 @@ import 'react-piano/dist/styles.css';
 import * as Tone from 'tone';
 
 const Synthesizer = ({ onExport }) => {
-  const [synthType, setSynthType] = useState('subtractive');
+  const loadSettings = () => {
+    const saved = localStorage.getItem('synthesizerSettings');
+    if (saved) {
+      const settings = JSON.parse(saved);
+      return settings;
+    }
+    return {
+      synthType: 'subtractive',
+      params: {
+        oscType: 'sawtooth',
+        oscDetune: 0,
+        filterFreq: 2000,
+        filterQ: 1,
+        filterType: 'lowpass',
+        attack: 0.1,
+        decay: 0.2,
+        sustain: 0.5,
+        release: 1,
+        fmIndex: 10,
+        fmRatio: 2,
+        wavetablePos: 0,
+        volume: -6
+      }
+    };
+  };
+
+  const savedSettings = loadSettings();
+  const [synthType, setSynthType] = useState(savedSettings.synthType);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState([]);
   const activeNotesRef = useRef([]);
   const recordStartRef = useRef(0);
   const synthRef = useRef(null);
+  const [params, setParams] = useState(savedSettings.params);
 
-  // Synthesizer parameters
-  const [params, setParams] = useState({
-    // Oscillator
-    oscType: 'sawtooth',
-    oscDetune: 0,
-    // Filter
-    filterFreq: 2000,
-    filterQ: 1,
-    filterType: 'lowpass',
-    // Envelope
-    attack: 0.1,
-    decay: 0.2,
-    sustain: 0.5,
-    release: 1,
-    // FM specific
-    fmIndex: 10,
-    fmRatio: 2,
-    // Wavetable specific
-    wavetablePos: 0
-  });
+  useEffect(() => {
+    const settings = { synthType, params };
+    localStorage.setItem('synthesizerSettings', JSON.stringify(settings));
+  }, [synthType, params]);
 
   const createSynth = useCallback(() => {
     if (synthRef.current) {
@@ -54,7 +66,8 @@ const Synthesizer = ({ onExport }) => {
             decay: params.decay,
             sustain: params.sustain,
             release: params.release
-          }
+          },
+          volume: params.volume || -6
         }).toDestination();
         break;
 
@@ -79,12 +92,12 @@ const Synthesizer = ({ onExport }) => {
             decay: 0.01,
             sustain: 1,
             release: 0.5
-          }
+          },
+          volume: params.volume || -6
         }).toDestination();
         break;
 
       case 'wavetable':
-        // Simulated wavetable using OmniOscillator with wave switching
         synthRef.current = new Tone.PolySynth(Tone.Synth, {
           oscillator: {
             type: 'custom',
@@ -100,12 +113,12 @@ const Synthesizer = ({ onExport }) => {
             decay: params.decay,
             sustain: params.sustain,
             release: params.release
-          }
+          },
+          volume: params.volume || -6
         }).toDestination();
         break;
 
       case 'granular':
-        // Simplified granular synthesis using noise and filtering
         synthRef.current = new Tone.PolySynth(Tone.Synth, {
           oscillator: {
             type: 'pulse',
@@ -121,12 +134,13 @@ const Synthesizer = ({ onExport }) => {
             decay: params.decay * 0.3,
             sustain: params.sustain * 0.7,
             release: params.release * 2
-          }
+          },
+          volume: params.volume || -6
         }).toDestination();
         break;
 
       default:
-        synthRef.current = new Tone.PolySynth().toDestination();
+        synthRef.current = new Tone.PolySynth({ volume: params.volume || -6 }).toDestination();
     }
   }, [synthType, params]);
 
@@ -140,7 +154,6 @@ const Synthesizer = ({ onExport }) => {
   }, [createSynth]);
 
   const generateWavetable = (position) => {
-    // Generate harmonic content based on wavetable position
     const harmonics = [];
     for (let i = 1; i <= 16; i++) {
       const amplitude = Math.sin(position * Math.PI + i * 0.5) * (1 / i);
@@ -214,7 +227,6 @@ const Synthesizer = ({ onExport }) => {
     <div className="bg-bg-medium p-4 rounded-lg"
          onContextMenu={(e) => e.preventDefault()}
          onDoubleClick={(e) => e.preventDefault()}>
-      {/* Synth Type Selector */}
       <div className="mb-4">
         <label className="block text-text-primary mb-2">Synthesizer Type:</label>
         <select
@@ -229,9 +241,7 @@ const Synthesizer = ({ onExport }) => {
         </select>
       </div>
 
-      {/* Parameter Controls */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        {/* Oscillator Controls */}
         <div>
           <label className="block text-text-secondary text-sm mb-1">Oscillator</label>
           <select
@@ -246,7 +256,6 @@ const Synthesizer = ({ onExport }) => {
           </select>
         </div>
 
-        {/* Filter Controls */}
         <div>
           <label className="block text-text-secondary text-sm mb-1">Filter Freq</label>
           <input
@@ -288,7 +297,6 @@ const Synthesizer = ({ onExport }) => {
           <span className="text-xs text-text-secondary">{params.attack}s</span>
         </div>
 
-        {/* FM Specific Controls */}
         {synthType === 'fm' && (
           <>
             <div>
@@ -299,7 +307,7 @@ const Synthesizer = ({ onExport }) => {
                 max="50"
                 value={params.fmIndex}
                 onChange={(e) => updateParam('fmIndex', parseInt(e.target.value))}
-                className="w-full"
+                className="w-full accent-emerald-400"
               />
               <span className="text-xs text-text-secondary">{params.fmIndex}</span>
             </div>
@@ -313,14 +321,13 @@ const Synthesizer = ({ onExport }) => {
                 step="0.1"
                 value={params.fmRatio}
                 onChange={(e) => updateParam('fmRatio', parseFloat(e.target.value))}
-                className="w-full"
+                className="w-full accent-emerald-400"
               />
               <span className="text-xs text-text-secondary">{params.fmRatio}</span>
             </div>
           </>
         )}
 
-        {/* Wavetable Specific Controls */}
         {synthType === 'wavetable' && (
           <div>
             <label className="block text-text-secondary text-sm mb-1">Wave Position</label>
@@ -331,14 +338,13 @@ const Synthesizer = ({ onExport }) => {
               step="0.01"
               value={params.wavetablePos}
               onChange={(e) => updateParam('wavetablePos', parseFloat(e.target.value))}
-              className="w-full"
+              className="w-full accent-emerald-400"
             />
             <span className="text-xs text-text-secondary">{(params.wavetablePos * 100).toFixed(0)}%</span>
           </div>
         )}
       </div>
 
-      {/* Piano Interface */}
       <div onContextMenu={(e) => e.preventDefault()} onDoubleClick={(e) => e.preventDefault()}>
         <ReactPiano
           noteRange={{ first: MidiNumbers.fromNote('C3'), last: MidiNumbers.fromNote('C5') }}
@@ -348,33 +354,46 @@ const Synthesizer = ({ onExport }) => {
         />
       </div>
 
-      {/* Controls */}
       <div className="flex justify-between mt-4">
-        <div>
+        <div className="flex items-center gap-2">
           {isRecording ? (
             <button
               onClick={stopRecording}
-              className="bg-red-600 hover:bg-red-700 text-bg-dark font-bold py-2 px-4 rounded mr-2"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2"
             >
-              Stop
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              Stop Recording
             </button>
           ) : (
             <button
               onClick={startRecording}
-              className="bg-green-600 hover:bg-green-700 text-bg-dark font-bold py-2 px-4 rounded mr-2"
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
             >
               Record
             </button>
           )}
+          
+          <button
+            onClick={() => setRecording([])}
+            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+            disabled={recording.length === 0}
+          >
+            Clear
+          </button>
         </div>
 
-        <button
-          onClick={() => onExport(recording)}
-          className="bg-accent hover:bg-accent-hover text-bg-dark font-bold py-2 px-4 rounded"
-          disabled={recording.length === 0}
-        >
-          Export to Timeline
-        </button>
+        <div className="flex items-center gap-4">
+          <span className="text-text-secondary text-sm">
+            {recording.length} note{recording.length !== 1 ? 's' : ''} recorded
+          </span>
+          <button
+            onClick={() => onExport(recording, synthType, params)}
+            className="bg-accent hover:bg-accent-hover text-bg-dark font-bold py-2 px-4 rounded"
+            disabled={recording.length === 0}
+          >
+            Export to Timeline
+          </button>
+        </div>
       </div>
     </div>
   );
