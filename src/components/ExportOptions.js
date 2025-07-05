@@ -7,38 +7,26 @@ const ExportOptions = ({ tracks }) => {
   const [exportFormat, setExportFormat] = useState('wav');
   const [exportQuality, setExportQuality] = useState('high');
 
-  // Calculate total project duration with better validation
   const getProjectDuration = () => {
-    console.log('Calculating project duration...');
-    
     if (tracks.length === 0) {
-      console.log('No tracks found, using default 10 seconds');
-      return 10; // Default 10 seconds if no tracks
+      return 0;
     }
-    
+
     let maxDuration = 0;
-    
-    tracks.forEach((track, trackIndex) => {
-      console.log(`Track ${trackIndex + 1} (${track.name}): ${track.clips.length} clips`);
-      
-      track.clips.forEach((clip, clipIndex) => {
+
+    tracks.forEach((track) => {
+      track.clips.forEach((clip) => {
         const clipStart = clip.left / 100; // Convert pixels to seconds
         const clipDuration = clip.duration || 0;
         const clipEnd = clipStart + clipDuration;
-        
-        console.log(`  Clip ${clipIndex + 1} (${clip.name}): start=${clipStart.toFixed(2)}s, duration=${clipDuration.toFixed(2)}s, end=${clipEnd.toFixed(2)}s`);
-        
+
         if (clipEnd > maxDuration) {
           maxDuration = clipEnd;
         }
       });
     });
-    
-    // Add buffer and ensure minimum duration
-    const finalDuration = Math.max(maxDuration + 2, 5); // Minimum 5 seconds, add 2 second buffer
-    console.log(`Calculated duration: ${finalDuration.toFixed(2)} seconds`);
-    
-    return finalDuration;
+
+    return maxDuration;
   };
 
   // Export entire mix as audio
@@ -51,10 +39,11 @@ const ExportOptions = ({ tracks }) => {
     setIsExporting(true);
     
     try {
-      const duration = getProjectDuration();
+      const projectDuration = getProjectDuration();
+      const renderDuration = Math.max(projectDuration + 2, 5);
       const sampleRate = exportQuality === 'high' ? 48000 : 44100;
       
-      console.log('Starting export with duration:', duration, 'seconds');
+      console.log('Starting export with duration:', renderDuration, 'seconds (project:', projectDuration, 'seconds)');
       console.log('Sample rate:', sampleRate);
       console.log('Tracks to export:', tracks.length);
       
@@ -88,7 +77,7 @@ const ExportOptions = ({ tracks }) => {
         
         console.log('Total players created:', players.length);
         transport.start();
-      }, duration);
+      }, renderDuration);
       
       console.log('Render completed:', renderedBuffer);
       console.log('Buffer duration:', renderedBuffer.duration, 'seconds');
