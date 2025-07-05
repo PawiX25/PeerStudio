@@ -2,20 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 
 const LevelMeter = ({ label, level, peak, color = "bg-green-500", compact = false }) => {
-  const segments = compact ? 10 : 20;
+  const segments = 20;
   const segmentHeight = 100 / segments;
-
-  const baseHeightPx = compact ? 64 : 192; 
-  const [meterHeightPx, setMeterHeightPx] = useState(() => baseHeightPx / (window.devicePixelRatio || 1));
-
-  useEffect(() => {
-    const handleResize = () => {
-      setMeterHeightPx(baseHeightPx / (window.devicePixelRatio || 1));
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [compact]);
   
+  // Color zones for professional meter
   const getSegmentColor = (segmentIndex) => {
     const percentage = (segmentIndex + 1) * segmentHeight;
     if (percentage > 90) return 'bg-red-500'; // Danger zone
@@ -34,8 +24,11 @@ const LevelMeter = ({ label, level, peak, color = "bg-green-500", compact = fals
     return peak >= segmentLevel - segmentHeight && peak < segmentLevel;
   };
 
+  const meterHeight = compact ? 'h-16' : 'h-48';
   const meterWidth = compact ? 'w-3' : 'w-6';
   const labelSize = compact ? 'text-xs' : 'text-sm';
+  const displaySegments = compact ? 10 : segments;
+  const compactSegmentHeight = 100 / displaySegments;
   
   return (
     <div className="flex flex-col items-center">
@@ -44,22 +37,22 @@ const LevelMeter = ({ label, level, peak, color = "bg-green-500", compact = fals
       </span>
       
       {/* Level meter display */}
-      <div
-        className={`relative ${meterWidth} bg-bg-dark rounded-sm border border-gray-600`}
-        style={{ height: meterHeightPx }}
-      >
-        {Array.from({ length: segments }, (_, i) => {
-          const segmentIndex = segments - 1 - i; // Reverse order (top to bottom)
+      <div className={`relative ${meterWidth} ${meterHeight} bg-bg-dark rounded-sm border border-gray-600`}>
+        {Array.from({ length: displaySegments }, (_, i) => {
+          const segmentIndex = displaySegments - 1 - i; // Reverse order (top to bottom)
+          const currentSegmentHeight = compact ? compactSegmentHeight : segmentHeight;
           return (
             <div
               key={segmentIndex}
               className={`absolute w-full transition-all duration-75 ${
-                isSegmentActive(segmentIndex) ? getSegmentColor(segmentIndex) : 'bg-gray-700'
-              } ${isPeakSegment(segmentIndex) ? 'border border-white' : ''}`}
+                isSegmentActive(segmentIndex * (compact ? 2 : 1))
+                  ? getSegmentColor(segmentIndex * (compact ? 2 : 1))
+                  : 'bg-gray-700'
+              } ${isPeakSegment(segmentIndex * (compact ? 2 : 1)) ? 'border border-white' : ''}`}
               style={{
-                height: `${segmentHeight - 1}%`,
-                top: `${i * segmentHeight}%`,
-                opacity: isSegmentActive(segmentIndex) ? 1 : 0.3,
+                height: `${currentSegmentHeight - 1}%`,
+                top: `${i * currentSegmentHeight}%`,
+                opacity: isSegmentActive(segmentIndex * (compact ? 2 : 1)) ? 1 : 0.3,
               }}
             />
           );
