@@ -3,6 +3,7 @@ import Track from './Track';
 import TimelineRuler, { TimelinePreviewContainer } from './TimelineRuler';
 import * as Tone from 'tone';
 import ContextMenu from './ContextMenu';
+import Modal from './Modal';
 
 const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
@@ -19,7 +20,12 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const pixelsPerSecondConst = 100;
   const [contextMenu, setContextMenu] = useState(null);
+  const [selectedClip, setSelectedClip] = useState(null);
   const [contentHeight, setContentHeight] = useState(0);
+  const [isRenameModalOpen, setRenameModalOpen] = useState(false);
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [clipForModal, setClipForModal] = useState(null);
+  const [newName, setNewName] = useState('');
 
   useEffect(() => {
     let rafId;
@@ -337,12 +343,74 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
   const rulerAreaHeight = 32 + (isPreviewOpen && tracks.length > 0 ? 88 : 0);
 
-  const showContextMenu = (e) => {
+  const showContextMenu = (e, type, data) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    e.stopPropagation();
+    if (type === 'clip') {
+      setSelectedClip(data);
+    } else {
+      setSelectedClip(null);
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY, type });
   };
 
-  const closeContextMenu = () => setContextMenu(null);
+  const closeContextMenu = () => {
+    setContextMenu(null);
+    setSelectedClip(null);
+  };
+
+  const handleDeleteClip = () => {
+    if (!selectedClip) return;
+    setClipForModal(selectedClip);
+    setDeleteModalOpen(true);
+    closeContextMenu();
+  };
+
+  const handleRenameClip = () => {
+    if (!selectedClip) return;
+    setClipForModal(selectedClip);
+    setNewName(selectedClip.name);
+    setRenameModalOpen(true);
+    closeContextMenu();
+  };
+
+  const handleRenameSubmit = (e) => {
+    e.preventDefault();
+    if (newName && newName.trim() !== '' && clipForModal) {
+      setTracks(prevTracks =>
+        prevTracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip =>
+            clip.id === clipForModal.id ? { ...clip, name: newName.trim() } : clip
+          ),
+        }))
+      );
+    }
+    setRenameModalOpen(false);
+    setClipForModal(null);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!clipForModal) return;
+    setTracks(prevTracks =>
+      prevTracks.map(track => {
+        if (track.clips.find(c => c.id === clipForModal.id)) {
+          const clipToRemove = track.clips.find(c => c.id === clipForModal.id);
+          if (clipToRemove && clipToRemove.player) {
+            clipToRemove.player.stop();
+            clipToRemove.player.dispose();
+          }
+          return {
+            ...track,
+            clips: track.clips.filter(c => c.id !== clipForModal.id),
+          };
+        }
+        return track;
+      })
+    );
+    setDeleteModalOpen(false);
+    setClipForModal(null);
+  };
 
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
@@ -398,7 +466,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
           style={{ width: `${timelineWidth}px` }}
           onContextMenu={(e) => {
             if (e.target === e.currentTarget) {
-              showContextMenu(e);
+              showContextMenu(e, 'timeline');
             }
           }}
         >
@@ -437,6 +505,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
                     timelineChannel={timelineChannel}
                     onClipDrop={onClipDrop}
                     trackId={track.id}
+                    onClipContextMenu={showContextMenu}
                   />
                 </div>
               </div>
@@ -447,11 +516,62 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
           )}
         </div>
       </div>
+      <Modal isOpen={isRenameModalOpen} onClose={() => setRenameModalOpen(false)}>
+        <form onSubmit={handleRenameSubmit}>
+          <h3 className="text-lg font-bold mb-4">Rename Clip</h3>
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="w-full bg-bg-dark text-text-primary px-3 py-2 rounded-md outline-none border border-bg-light focus:border-accent"
+            autoFocus
+          />
+          <div className="flex justify-end gap-3 mt-5">
+            <button
+              type="button"
+              onClick={() => setRenameModalOpen(false)}
+              className="px-4 py-2 rounded-md bg-bg-light hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover"
+            >
+              Rename
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
+        <h3 className="text-lg font-bold mb-2">Delete Clip</h3>
+        <p className="text-text-secondary mb-5">
+          Are you sure you want to delete the clip "{clipForModal?.name}"? This action cannot be undone.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setDeleteModalOpen(false)}
+            className="px-4 py-2 rounded-md bg-bg-light hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDeleteConfirm}
+            className="px-4 py-2 rounded-md bg-red-500 hover:bg-red-600 text-white"
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
+
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          onAddTrack={onAddTrack}
+          onAddTrack={contextMenu.type === 'timeline' ? onAddTrack : null}
+          onRename={contextMenu.type === 'clip' ? handleRenameClip : null}
+          onDelete={contextMenu.type === 'clip' ? handleDeleteClip : null}
           onClose={closeContextMenu}
         />
       )}

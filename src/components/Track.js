@@ -14,7 +14,7 @@ const clipColors = [
   'bg-pink-400',
 ];
 
-const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop }) => {
+const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onClipContextMenu }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -306,6 +306,7 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop }) =>
           onUpdate={handleClipUpdate}
           onPositionChange={handleClipPositionChange}
           trackId={track.id}
+          onContextMenu={(e) => onClipContextMenu(e, 'clip', clip)}
         />
       ))}
     </div>

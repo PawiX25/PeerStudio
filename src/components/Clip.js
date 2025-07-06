@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import Waveform from './Waveform';
 
-const Clip = ({ clip, onUpdate, onPositionChange, trackId }) => {
+const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [initialX, setInitialX] = useState(0);
   const [initialLeft, setInitialLeft] = useState(0);
@@ -107,6 +107,7 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId }) => {
       onDragStart={handleDragStart}
       onDrag={handleDrag}
       onDragEnd={handleDragEnd}
+      onContextMenu={onContextMenu}
       title={isMusicPlaying ? 'Stop playback to move clips' : 'Drag to move clip'}
     >
       <div className="absolute inset-0">
