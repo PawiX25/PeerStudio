@@ -102,13 +102,40 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (scrollContainerRef.current) {
-        setViewportWidth(scrollContainerRef.current.offsetWidth);
-      }
+    const container = scrollContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries.length) return;
+      const { width } = entries[0].contentRect;
+      setViewportWidth(width);
+      setContentHeight(container.scrollHeight);
+    });
+
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      setContentHeight(scrollContainerRef.current.scrollHeight);
+    }
+  }, [tracks, isSidebarCollapsed]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.classList.add('no-scrollbar');
+    const timeout = setTimeout(() => {
+      container.classList.remove('no-scrollbar');
     }, 550);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timeout);
+      container.classList.remove('no-scrollbar');
+    };
   }, [isSidebarCollapsed]);
 
   useEffect(() => {
@@ -139,7 +166,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
     };
 
     calcWidth();
-  }, [tracks, playheadPosition]);
+  }, [tracks, playheadPosition, viewportWidth]);
 
   const handleDragStart = (e, trackId) => {
     if (isMusicPlaying) {
