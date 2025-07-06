@@ -90,8 +90,7 @@ const VolumeSlider = ({ label, volume, onChange, isMuted, onMuteToggle, color = 
   );
 };
 
-const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+const Sidebar = ({ onAddTrack, tracks, setTracks, isCollapsed, onToggleCollapse }) => {
   const [masterVolume, setMasterVolume] = useState(85);
   const [masterMuted, setMasterMuted] = useState(false);
   const [trackVolumes, setTrackVolumes] = useState({});
@@ -157,7 +156,9 @@ const Sidebar = ({ onAddTrack, tracks, setTracks }) => {
   };
 
   const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    }
   };
 
   return (

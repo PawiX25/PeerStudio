@@ -36,10 +36,10 @@ function App() {
   const peerRef = useRef(null);
   const connectionsRef = useRef([]);
   const [isConnected, setIsConnected] = useState(false);
-  
   const [history, setHistory] = useState([tracks]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const maxHistorySize = 50;
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const synthesizeSequencerPattern = useCallback(async (pattern, skipBroadcast = false, clipId = null) => {
     const loopDuration = Tone.Time('1m').toSeconds();
@@ -628,7 +628,14 @@ function App() {
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="mobile-landscape-sidebar">
-          <Sidebar onAddTrack={() => addTrack()} tracks={tracks} setTracks={setTracks} pushToHistory={pushToHistory} />
+          <Sidebar 
+            onAddTrack={() => addTrack()} 
+            tracks={tracks} 
+            setTracks={setTracks} 
+            pushToHistory={pushToHistory}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
+          />
         </div>
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Timeline Section - Takes remaining space but allows bottom panel */}
@@ -641,6 +648,7 @@ function App() {
               onAudioImport={handleAudioImport}
               onAddTrack={() => addTrack()}
               pushToHistory={pushToHistory}
+              isSidebarCollapsed={isSidebarCollapsed}
             />
           </div>
           {/* Bottom Instrument Panel - Fixed height, responsive for landscape */}

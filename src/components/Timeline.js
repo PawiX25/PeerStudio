@@ -4,7 +4,7 @@ import TimelineRuler, { TimelinePreviewContainer } from './TimelineRuler';
 import * as Tone from 'tone';
 import ContextMenu from './ContextMenu';
 
-const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport, onAddTrack }) => {
+const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [draggedTrackId, setDraggedTrackId] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -102,19 +102,14 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   }, []);
 
   useEffect(() => {
-    const updateHeight = () => {
+    const timer = setTimeout(() => {
       if (scrollContainerRef.current) {
-        setContentHeight(scrollContainerRef.current.scrollHeight);
+        setViewportWidth(scrollContainerRef.current.offsetWidth);
       }
-    };
+    }, 550);
 
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-
-    return () => {
-      window.removeEventListener('resize', updateHeight);
-    };
-  }, [tracks]);
+    return () => clearTimeout(timer);
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     const checkTransportState = () => {
