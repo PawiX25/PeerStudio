@@ -419,6 +419,15 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
           <div ref={rulerRef} className="will-change-transform w-full h-full">
             <TimelineRuler widthPx={timelineWidth} />
           </div>
+          {tracks.length > 0 && (
+            <button
+              onClick={() => setIsPreviewOpen(!isPreviewOpen)}
+              className="absolute top-1/2 right-4 -translate-y-1/2 z-40 px-2 py-1 text-xs bg-bg-light rounded text-text-secondary hover:bg-bg-light-hover pointer-events-auto"
+              title={isPreviewOpen ? 'Hide timeline preview' : 'Show timeline preview'}
+            >
+              {isPreviewOpen ? 'Hide' : 'Show'}
+            </button>
+          )}
         </div>
         <div className="relative w-full">
           <TimelinePreviewContainer

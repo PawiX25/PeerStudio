@@ -85,22 +85,11 @@ export const TimelinePreviewContainer = ({
   viewportWidth,
   onPreviewNavigate,
   isPreviewOpen,
-  onToggle,
 }) => {
   const pixelsPerSecond = 100;
 
   return (
     <div className="absolute top-0 left-0 w-full h-auto pointer-events-none">
-      {tracks.length > 0 && (
-        <button
-          onClick={() => onToggle(!isPreviewOpen)}
-          className="absolute top-1 right-2 z-20 px-2 py-1 text-xs bg-bg-light rounded text-text-secondary hover:bg-bg-light-hover pointer-events-auto"
-          title={isPreviewOpen ? 'Hide timeline preview' : 'Show timeline preview'}
-        >
-          {isPreviewOpen ? 'Hide' : 'Show'}
-        </button>
-      )}
-
       {isPreviewOpen && tracks.length > 0 && (
         <div className="relative pt-8">
           <div className="w-full h-auto mt-2 pointer-events-auto bg-bg-medium p-2 rounded-b-lg">
