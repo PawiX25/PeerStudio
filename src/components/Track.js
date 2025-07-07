@@ -131,18 +131,14 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
         let newLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffset;
         if (newLeft < 0) newLeft = 0;
 
-        requestAnimationFrame(() => {
-          onClipDrop(clipId, sourceTrackId, track.id, newLeft);
-        });
+        onClipDrop(clipId, sourceTrackId, track.id, newLeft);
     } else {
         const startX = parseFloat(e.dataTransfer.getData('startX')) || 0;
         const startLeft = parseFloat(e.dataTransfer.getData('clipLeft')) || 0;
         const deltaX = e.clientX - startX;
         let newLeft = startLeft + deltaX;
         if (newLeft < 0) newLeft = 0;
-        requestAnimationFrame(() => {
-          onClipDrop(clipId, sourceTrackId, track.id, newLeft);
-        });
+        onClipDrop(clipId, sourceTrackId, track.id, newLeft);
     }
   };
 

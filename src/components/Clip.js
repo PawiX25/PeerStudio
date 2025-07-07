@@ -4,12 +4,10 @@ import Waveform from './Waveform';
 
 const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [initialX, setInitialX] = useState(0);
-  const [initialLeft, setInitialLeft] = useState(0);
-  const [tempLeft, setTempLeft] = useState(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const clipRef = useRef(null);
   const cursorOffsetRef = useRef(0);
+  const dragImageRef = useRef(null);
 
   useEffect(() => {
     const checkTransportState = () => {
@@ -33,113 +31,114 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
     }
     
     e.stopPropagation();
-    setIsDragging(true);
-    setInitialX(e.clientX);
-    setInitialLeft(clip.left);
-    setTempLeft(clip.left);
-
+    
     if (clipRef.current) {
-        cursorOffsetRef.current = e.clientX - clipRef.current.getBoundingClientRect().left;
-    } else {
-        cursorOffsetRef.current = 0;
+      clipRef.current.style.opacity = '0.5';
     }
+    setIsDragging(true);
+    
+    const rect = clipRef.current.getBoundingClientRect();
+    cursorOffsetRef.current = e.clientX - rect.left;
+
+    const dragImage = clipRef.current.cloneNode(true);
+    dragImage.style.opacity = '0.7';
+    
+    const originalCanvas = clipRef.current.querySelector('canvas');
+    if (originalCanvas) {
+      const clonedCanvas = dragImage.querySelector('canvas');
+      const clonedCtx = clonedCanvas.getContext('2d');
+      clonedCanvas.width = originalCanvas.width;
+      clonedCanvas.height = originalCanvas.height;
+      clonedCtx.drawImage(originalCanvas, 0, 0);
+    }
+
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-1000px';
+    dragImage.style.width = `${rect.width}px`;
+    dragImage.style.height = `${rect.height}px`;
+    document.body.appendChild(dragImage);
+    dragImageRef.current = dragImage;
+    
+    e.dataTransfer.setDragImage(dragImage, cursorOffsetRef.current, rect.height / 2);
 
     e.dataTransfer.setData('clipId', clip.id);
     e.dataTransfer.setData('sourceTrackId', trackId);
     e.dataTransfer.setData('clipLeft', clip.left);
     e.dataTransfer.setData('cursorOffset', cursorOffsetRef.current);
-    // Add specific identifier for clip drags to avoid conflicts with track drags
     e.dataTransfer.setData('application/x-clip-id', clip.id);
-    e.dataTransfer.setData('startX', String(e.clientX));
-    const img = new Image();
-    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-    e.dataTransfer.setDragImage(img, 0, 0);
   };
 
   const handleDragEnd = (e) => {
-    setIsDragging(false);
-    setTempLeft(null);
+    if (!isDragging) return;
     
-    // Only process drag end if not playing music
-    if (isMusicPlaying) {
+    setIsDragging(false);
+    if (clipRef.current) {
+      clipRef.current.style.opacity = '1';
+    }
+    
+    if (dragImageRef.current) {
+      document.body.removeChild(dragImageRef.current);
+      dragImageRef.current = null;
+    }
+    
+    if (isMusicPlaying || e.clientX === 0) {
       return;
     }
     
-    if (scrollContainerRef && scrollContainerRef.current) {
-        const timelineRect = scrollContainerRef.current.getBoundingClientRect();
-        let finalLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffsetRef.current;
-        if (finalLeft < 0) finalLeft = 0;
+    const timelineRect = scrollContainerRef.current.getBoundingClientRect();
+    let finalLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffsetRef.current;
+    if (finalLeft < 0) finalLeft = 0;
 
-        // Safely update audio player timing only when not playing
-        try {
-          if (clip.player && clip.player.loaded) {
-            clip.player.unsync();
-            const newTime = finalLeft / 100; // 100px per second
-            clip.player.sync().start(newTime);
-          }
-        } catch (error) {
-          console.warn('Error updating clip timing:', error);
-        }
-        
-        onUpdate(clip.id, { left: finalLeft });
-        if (typeof onPositionChange === 'function') {
-          onPositionChange(clip.id, finalLeft);
-        }
-    } else {
-        const deltaX = e.clientX - initialX;
-        let finalLeft = initialLeft + deltaX;
-        if (finalLeft < 0) finalLeft = 0;
-        onUpdate(clip.id, { left: finalLeft });
-        if (typeof onPositionChange === 'function') {
-          onPositionChange(clip.id, finalLeft);
-        }
+    try {
+      if (clip.player && clip.player.loaded) {
+        clip.player.unsync();
+        const newTime = finalLeft / 100;
+        clip.player.sync().start(newTime);
+      }
+    } catch (error) {
+      console.warn('Error updating clip timing:', error);
+    }
+    
+    onUpdate(clip.id, { left: finalLeft });
+    if (typeof onPositionChange === 'function') {
+      onPositionChange(clip.id, finalLeft);
     }
   };
 
   const handleDrag = (e) => {
-    // Don't process drag events during playback
-    if (isMusicPlaying) {
+    if (isMusicPlaying || !isDragging || e.clientX === 0) {
       return;
     }
-    
-    if (isDragging && e.clientX !== 0) {
-        if (scrollContainerRef && scrollContainerRef.current) {
-            const timelineRect = scrollContainerRef.current.getBoundingClientRect();
-            let newLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffsetRef.current;
-            if (newLeft < 0) newLeft = 0;
-            setTempLeft(newLeft);
-        }
 
-      if (scrollContainerRef && scrollContainerRef.current) {
-        const container = scrollContainerRef.current;
-        const rect = container.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const scrollZone = 50;
-        const scrollSpeed = 15;
+    if (scrollContainerRef && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const scrollZone = 50;
+      const scrollSpeed = 15;
 
-        if (x > rect.width - scrollZone) {
-          container.scrollLeft += scrollSpeed;
-          if (container.scrollLeft + container.offsetWidth >= timelineWidth - 200) {
-            setTimelineWidth(prev => prev + 500);
-          }
-        } else if (x < scrollZone) {
-          container.scrollLeft -= scrollSpeed;
+      if (x > rect.width - scrollZone) {
+        container.scrollLeft += scrollSpeed;
+        if (container.scrollLeft + container.offsetWidth >= timelineWidth - 200) {
+          setTimelineWidth(prev => prev + 500);
         }
+      } else if (x < scrollZone) {
+        container.scrollLeft -= scrollSpeed;
       }
     }
   };
   
-  const clipWidth = clip.duration * 100; // 100px per second
+  const clipWidth = clip.duration * 100;
 
   return (
     <div
       ref={clipRef}
-      className={`absolute h-full top-0 ${clip.color} rounded-lg text-black p-2 box-border overflow-hidden select-none border-2 border-transparent ${
+      className={`absolute h-full top-0 ${clip.color} rounded-lg text-black p-2 box-border overflow-hidden select-none border-2 border-transparent transition-opacity ${
         isMusicPlaying 
-          ? 'cursor-not-allowed opacity-75' 
+          ? 'cursor-not-allowed' 
           : 'cursor-grab active:cursor-grabbing hover:border-white'
       }`}
-      style={{ left: `${(isDragging && tempLeft !== null) ? tempLeft : clip.left}px`, width: `${clipWidth}px` }}
+      style={{ left: `${clip.left}px`, width: `${clipWidth}px`, opacity: isDragging ? '0.5' : '1' }}
       draggable={!isMusicPlaying}
       onDragStart={handleDragStart}
       onDrag={handleDrag}
@@ -157,4 +156,4 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
   );
 };
 
-export default Clip; 
+export default Clip;
