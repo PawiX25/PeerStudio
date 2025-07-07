@@ -143,8 +143,8 @@ const TimelineRuler = ({ noPadding = false, widthPx = 6000 }) => {
   }
 
   return (
-    <div className="relative h-8 bg-bg-medium" style={{ width: `${totalWidth}px` }}>
-      <div className={`${noPadding ? '' : 'p-4'} h-full`}>
+    <div className="relative h-8 bg-bg-medium border-b border-bg-light" style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}>
+      <div className={`${noPadding ? '' : 'p-4'} h-full w-full`}>
         {markers}
       </div>
     </div>

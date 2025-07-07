@@ -414,26 +414,28 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
   return (
     <div className="flex flex-col h-full bg-bg-dark overflow-hidden">
-      <div className="flex-shrink-0 relative" style={{ height: `${rulerAreaHeight}px` }}>
-        <div className="overflow-hidden relative h-8">
-          <div ref={rulerRef} className="will-change-transform">
+      <div className="flex-shrink-0 relative z-20 w-full bg-bg-medium" style={{ height: `${rulerAreaHeight}px` }}>
+        <div className="sticky top-0 left-0 right-0 overflow-hidden relative h-8 bg-bg-medium border-b border-bg-light w-full z-30 shadow-sm">
+          <div ref={rulerRef} className="will-change-transform w-full h-full">
             <TimelineRuler widthPx={timelineWidth} />
           </div>
         </div>
-        <TimelinePreviewContainer
-          widthPx={timelineWidth}
-          tracks={tracks}
-          scrollLeft={scrollLeft}
-          viewportWidth={viewportWidth}
-          onPreviewNavigate={handlePreviewNavigate}
-          isPreviewOpen={isPreviewOpen}
-          onToggle={setIsPreviewOpen}
-        />
+        <div className="relative w-full">
+          <TimelinePreviewContainer
+            widthPx={timelineWidth}
+            tracks={tracks}
+            scrollLeft={scrollLeft}
+            viewportWidth={viewportWidth}
+            onPreviewNavigate={handlePreviewNavigate}
+            isPreviewOpen={isPreviewOpen}
+            onToggle={setIsPreviewOpen}
+          />
+        </div>
       </div>
       
       <div 
         ref={scrollContainerRef} 
-        className={`flex-1 overflow-auto relative min-h-0 ${
+        className={`flex-1 overflow-auto relative min-h-0 mt-0 ${
           isDroppingFiles ? 'bg-green-500 bg-opacity-20 border-2 border-green-500 border-dashed' : ''
         }`}
         onClick={handleTimelineClick}
