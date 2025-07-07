@@ -309,6 +309,11 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
     e.stopPropagation();
     setIsDroppingFiles(false);
 
+    const isClipDrag = e.dataTransfer.types.includes('application/x-clip-id');
+    if (isClipDrag) {
+      return;
+    }
+
     if (isMusicPlaying) {
       alert('Please stop the music before importing audio files.');
       return;
@@ -517,6 +522,9 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
                     onClipDrop={onClipDrop}
                     trackId={track.id}
                     onClipContextMenu={showContextMenu}
+                    scrollContainerRef={scrollContainerRef}
+                    timelineWidth={timelineWidth}
+                    setTimelineWidth={setTimelineWidth}
                   />
                 </div>
               </div>

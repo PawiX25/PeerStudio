@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import Waveform from './Waveform';
 
-const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu }) => {
+const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [initialX, setInitialX] = useState(0);
   const [initialLeft, setInitialLeft] = useState(0);
   const [tempLeft, setTempLeft] = useState(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const clipRef = useRef(null);
+  const cursorOffsetRef = useRef(0);
 
   useEffect(() => {
     const checkTransportState = () => {
@@ -36,9 +37,17 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu }) => {
     setInitialX(e.clientX);
     setInitialLeft(clip.left);
     setTempLeft(clip.left);
+
+    if (clipRef.current) {
+        cursorOffsetRef.current = e.clientX - clipRef.current.getBoundingClientRect().left;
+    } else {
+        cursorOffsetRef.current = 0;
+    }
+
     e.dataTransfer.setData('clipId', clip.id);
     e.dataTransfer.setData('sourceTrackId', trackId);
     e.dataTransfer.setData('clipLeft', clip.left);
+    e.dataTransfer.setData('cursorOffset', cursorOffsetRef.current);
     // Add specific identifier for clip drags to avoid conflicts with track drags
     e.dataTransfer.setData('application/x-clip-id', clip.id);
     e.dataTransfer.setData('startX', String(e.clientX));
@@ -56,24 +65,34 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu }) => {
       return;
     }
     
-    const deltaX = e.clientX - initialX;
-    let finalLeft = initialLeft + deltaX;
-    if (finalLeft < 0) finalLeft = 0;
-    
-    // Safely update audio player timing only when not playing
-    try {
-      if (clip.player && clip.player.loaded) {
-        clip.player.unsync();
-        const newTime = finalLeft / 100; // 100px per second
-        clip.player.sync().start(newTime);
-      }
-    } catch (error) {
-      console.warn('Error updating clip timing:', error);
-    }
-    
-    onUpdate(clip.id, { left: finalLeft });
-    if (typeof onPositionChange === 'function') {
-      onPositionChange(clip.id, finalLeft);
+    if (scrollContainerRef && scrollContainerRef.current) {
+        const timelineRect = scrollContainerRef.current.getBoundingClientRect();
+        let finalLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffsetRef.current;
+        if (finalLeft < 0) finalLeft = 0;
+
+        // Safely update audio player timing only when not playing
+        try {
+          if (clip.player && clip.player.loaded) {
+            clip.player.unsync();
+            const newTime = finalLeft / 100; // 100px per second
+            clip.player.sync().start(newTime);
+          }
+        } catch (error) {
+          console.warn('Error updating clip timing:', error);
+        }
+        
+        onUpdate(clip.id, { left: finalLeft });
+        if (typeof onPositionChange === 'function') {
+          onPositionChange(clip.id, finalLeft);
+        }
+    } else {
+        const deltaX = e.clientX - initialX;
+        let finalLeft = initialLeft + deltaX;
+        if (finalLeft < 0) finalLeft = 0;
+        onUpdate(clip.id, { left: finalLeft });
+        if (typeof onPositionChange === 'function') {
+          onPositionChange(clip.id, finalLeft);
+        }
     }
   };
 
@@ -84,11 +103,29 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu }) => {
     }
     
     if (isDragging && e.clientX !== 0) {
-      const deltaX = e.clientX - initialX;
-      let newLeft = initialLeft + deltaX;
-      if (newLeft < 0) newLeft = 0;
-      
-      setTempLeft(newLeft);
+        if (scrollContainerRef && scrollContainerRef.current) {
+            const timelineRect = scrollContainerRef.current.getBoundingClientRect();
+            let newLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffsetRef.current;
+            if (newLeft < 0) newLeft = 0;
+            setTempLeft(newLeft);
+        }
+
+      if (scrollContainerRef && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const scrollZone = 50;
+        const scrollSpeed = 15;
+
+        if (x > rect.width - scrollZone) {
+          container.scrollLeft += scrollSpeed;
+          if (container.scrollLeft + container.offsetWidth >= timelineWidth - 200) {
+            setTimelineWidth(prev => prev + 500);
+          }
+        } else if (x < scrollZone) {
+          container.scrollLeft -= scrollSpeed;
+        }
+      }
     }
   };
   

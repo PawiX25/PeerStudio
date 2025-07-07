@@ -14,7 +14,7 @@ const clipColors = [
   'bg-pink-400',
 ];
 
-const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onClipContextMenu }) => {
+const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onClipContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -124,16 +124,26 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
     
     const clipId = e.dataTransfer.getData('clipId');
     const sourceTrackId = e.dataTransfer.getData('sourceTrackId');
-    const startX = parseFloat(e.dataTransfer.getData('startX')) || 0;
-    const startLeft = parseFloat(e.dataTransfer.getData('clipLeft')) || 0;
+    
+    if (scrollContainerRef && scrollContainerRef.current) {
+        const cursorOffset = parseFloat(e.dataTransfer.getData('cursorOffset')) || 0;
+        const timelineRect = scrollContainerRef.current.getBoundingClientRect();
+        let newLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffset;
+        if (newLeft < 0) newLeft = 0;
 
-    const deltaX = e.clientX - startX;
-    let newLeft = startLeft + deltaX;
-    if (newLeft < 0) newLeft = 0;
-
-    requestAnimationFrame(() => {
-      onClipDrop(clipId, sourceTrackId, track.id, newLeft);
-    });
+        requestAnimationFrame(() => {
+          onClipDrop(clipId, sourceTrackId, track.id, newLeft);
+        });
+    } else {
+        const startX = parseFloat(e.dataTransfer.getData('startX')) || 0;
+        const startLeft = parseFloat(e.dataTransfer.getData('clipLeft')) || 0;
+        const deltaX = e.clientX - startX;
+        let newLeft = startLeft + deltaX;
+        if (newLeft < 0) newLeft = 0;
+        requestAnimationFrame(() => {
+          onClipDrop(clipId, sourceTrackId, track.id, newLeft);
+        });
+    }
   };
 
   const isLabelObscured = track.clips.some((clip) => clip.left < 50);
@@ -307,6 +317,9 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
           onPositionChange={handleClipPositionChange}
           trackId={track.id}
           onContextMenu={(e) => onClipContextMenu(e, 'clip', clip)}
+          scrollContainerRef={scrollContainerRef}
+          timelineWidth={timelineWidth}
+          setTimelineWidth={setTimelineWidth}
         />
       ))}
     </div>
