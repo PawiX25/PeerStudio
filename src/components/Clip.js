@@ -40,26 +40,36 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
     const rect = clipRef.current.getBoundingClientRect();
     cursorOffsetRef.current = e.clientX - rect.left;
 
+  
+    const clampedOffsetX = Math.max(0, Math.min(cursorOffsetRef.current, rect.width));
+
     const dragImage = clipRef.current.cloneNode(true);
-    dragImage.style.opacity = '0.7';
-    
+
+    dragImage.style.opacity = '1';
+    dragImage.style.pointerEvents = 'none';
+
     const originalCanvas = clipRef.current.querySelector('canvas');
     if (originalCanvas) {
       const clonedCanvas = dragImage.querySelector('canvas');
-      const clonedCtx = clonedCanvas.getContext('2d');
-      clonedCanvas.width = originalCanvas.width;
-      clonedCanvas.height = originalCanvas.height;
-      clonedCtx.drawImage(originalCanvas, 0, 0);
+      if (clonedCanvas) {
+        const clonedCtx = clonedCanvas.getContext('2d');
+        clonedCanvas.width = originalCanvas.width;
+        clonedCanvas.height = originalCanvas.height;
+        clonedCtx.drawImage(originalCanvas, 0, 0);
+      }
     }
 
     dragImage.style.position = 'absolute';
-    dragImage.style.top = '-1000px';
+    dragImage.style.top = '-10000px';
+    dragImage.style.left = '-10000px';
     dragImage.style.width = `${rect.width}px`;
     dragImage.style.height = `${rect.height}px`;
     document.body.appendChild(dragImage);
     dragImageRef.current = dragImage;
-    
-    e.dataTransfer.setDragImage(dragImage, cursorOffsetRef.current, rect.height / 2);
+
+
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setDragImage(dragImage, clampedOffsetX, rect.height / 2);
 
     e.dataTransfer.setData('clipId', clip.id);
     e.dataTransfer.setData('sourceTrackId', trackId);
