@@ -346,7 +346,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
     }
   };
 
-  const rulerAreaHeight = 32 + (isPreviewOpen && tracks.length > 0 ? 88 : 0);
+  const rulerAreaHeight = 32 + (isPreviewOpen && tracks.length > 0 ? 56 : 0);
 
   const showContextMenu = (e, type, data) => {
     e.preventDefault();

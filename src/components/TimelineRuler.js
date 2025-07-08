@@ -91,7 +91,7 @@ export const TimelinePreviewContainer = ({
   return (
     <div className="absolute top-0 left-0 w-full h-auto pointer-events-none">
       {isPreviewOpen && tracks.length > 0 && (
-        <div className="relative pt-8">
+        <div className="relative">
           <div className="w-full h-auto mt-2 pointer-events-auto bg-bg-medium p-2 rounded-b-lg">
             <TimelinePreview
               tracks={tracks}
