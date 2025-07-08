@@ -15,6 +15,8 @@ const Header = ({
   onRedo,
   canUndo,
   canRedo,
+  onZoomChange,
+  zoomLevel,
 }) => {
   const [copied, setCopied] = useState(false);
   
@@ -36,6 +38,10 @@ const Header = ({
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const handleZoomIn = () => onZoomChange(prev => Math.min(4, prev * 1.25));
+  const handleZoomOut = () => onZoomChange(prev => Math.max(0.25, prev * 0.8));
+
   return (
     <header className="bg-bg-medium h-16 flex items-center justify-between px-6 border-b border-bg-light">
       <div className="text-xl font-bold text-accent">PeerStudio</div>
@@ -79,6 +85,35 @@ const Header = ({
         </div>
       </div>
       <div className="flex items-center gap-4">
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleZoomOut}
+            className="p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors bg-bg-light hover:bg-accent text-text-primary"
+            title="Zoom Out (-)"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path>
+            </svg>
+          </button>
+          <button 
+            onClick={() => onZoomChange(1)}
+            className="font-mono text-sm text-text-secondary w-12 text-center p-2 rounded hover:bg-bg-light transition-colors"
+            title="Reset Zoom (100%)"
+          >
+            {Math.round(zoomLevel * 100)}%
+          </button>
+          <button 
+            onClick={handleZoomIn}
+            className="p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors bg-bg-light hover:bg-accent text-text-primary"
+            title="Zoom In (+)"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m-3-3h6"></path>
+            </svg>
+          </button>
+        </div>
+        <div className="w-px h-8 bg-bg-light"></div>
         {/* Undo/Redo buttons */}
         <div className="flex items-center gap-2">
           <button 
@@ -132,4 +167,4 @@ const Header = ({
   );
 };
 
-export default Header; 
+export default Header;

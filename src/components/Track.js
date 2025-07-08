@@ -14,7 +14,7 @@ const clipColors = [
   'bg-pink-400',
 ];
 
-const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onClipContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth }) => {
+const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -33,7 +33,7 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
           name: file.name,
           player,
           duration: player.buffer.duration,
-          left: 0,
+          left: 0, // in seconds
           color: randomColor,
         };
         setTracks((prevTracks) =>
@@ -41,7 +41,6 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
             t.id === track.id ? { ...t, clips: [...t.clips, newClip] } : t
           )
         );
-        player.connect(timelineChannel.current);
         player.sync().start(0);
       });
     }
@@ -93,12 +92,6 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
     );
   };
 
-  const handleClipPositionChange = (clipId, newLeft) => {
-    if (onClipMove) {
-      onClipMove(track.name, clipId, newLeft);
-    }
-  };
-
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -128,21 +121,15 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
     if (scrollContainerRef && scrollContainerRef.current) {
         const cursorOffset = parseFloat(e.dataTransfer.getData('cursorOffset')) || 0;
         const timelineRect = scrollContainerRef.current.getBoundingClientRect();
-        let newLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffset;
-        if (newLeft < 0) newLeft = 0;
+        let newLeftPx = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffset;
+        if (newLeftPx < 0) newLeftPx = 0;
 
-        onClipDrop(clipId, sourceTrackId, track.id, newLeft);
-    } else {
-        const startX = parseFloat(e.dataTransfer.getData('startX')) || 0;
-        const startLeft = parseFloat(e.dataTransfer.getData('clipLeft')) || 0;
-        const deltaX = e.clientX - startX;
-        let newLeft = startLeft + deltaX;
-        if (newLeft < 0) newLeft = 0;
-        onClipDrop(clipId, sourceTrackId, track.id, newLeft);
+        const newLeftSeconds = newLeftPx / pixelsPerSecond;
+        onClipDrop(clipId, sourceTrackId, track.id, newLeftSeconds);
     }
   };
 
-  const isLabelObscured = track.clips.some((clip) => clip.left < 50);
+  const isLabelObscured = track.clips.some((clip) => (clip.left * pixelsPerSecond) < 150);
 
   const importAudio = () => {
     fileInputRef.current && fileInputRef.current.click();
@@ -156,7 +143,7 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
 
     const totalDuration =
       track.clips.reduce(
-        (max, clip) => Math.max(max, clip.left / 100 + clip.duration),
+        (max, clip) => Math.max(max, clip.left + clip.duration),
         0
       ) + 1;
 
@@ -165,7 +152,7 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
         const channel = new Tone.Channel().toDestination();
         track.clips.forEach((clip) => {
           const tempPlayer = new Tone.Player(clip.player.buffer).connect(channel);
-          tempPlayer.start(clip.left / 100);
+          tempPlayer.start(clip.left);
         });
         transport.start();
       }, totalDuration);
@@ -310,12 +297,12 @@ const Track = ({ track, setTracks, timelineChannel, onClipMove, onClipDrop, onCl
           key={clip.id}
           clip={clip}
           onUpdate={handleClipUpdate}
-          onPositionChange={handleClipPositionChange}
           trackId={track.id}
           onContextMenu={(e) => onClipContextMenu(e, 'clip', clip)}
           scrollContainerRef={scrollContainerRef}
           timelineWidth={timelineWidth}
           setTimelineWidth={setTimelineWidth}
+          pixelsPerSecond={pixelsPerSecond}
         />
       ))}
     </div>

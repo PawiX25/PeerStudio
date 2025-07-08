@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import Waveform from './Waveform';
 
-const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth }) => {
+const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const clipRef = useRef(null);
@@ -40,7 +40,7 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
     const rect = clipRef.current.getBoundingClientRect();
     cursorOffsetRef.current = e.clientX - rect.left;
 
-  
+
     const clampedOffsetX = Math.max(0, Math.min(cursorOffsetRef.current, rect.width));
 
     const dragImage = clipRef.current.cloneNode(true);
@@ -73,7 +73,6 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
 
     e.dataTransfer.setData('clipId', clip.id);
     e.dataTransfer.setData('sourceTrackId', trackId);
-    e.dataTransfer.setData('clipLeft', clip.left);
     e.dataTransfer.setData('cursorOffset', cursorOffsetRef.current);
     e.dataTransfer.setData('application/x-clip-id', clip.id);
   };
@@ -96,23 +95,21 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
     }
     
     const timelineRect = scrollContainerRef.current.getBoundingClientRect();
-    let finalLeft = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffsetRef.current;
-    if (finalLeft < 0) finalLeft = 0;
+    let finalLeftPx = e.clientX - timelineRect.left + scrollContainerRef.current.scrollLeft - cursorOffsetRef.current;
+    if (finalLeftPx < 0) finalLeftPx = 0;
+
+    const finalLeftSeconds = finalLeftPx / pixelsPerSecond;
 
     try {
       if (clip.player && clip.player.loaded) {
         clip.player.unsync();
-        const newTime = finalLeft / 100;
-        clip.player.sync().start(newTime);
+        clip.player.sync().start(finalLeftSeconds);
       }
     } catch (error) {
       console.warn('Error updating clip timing:', error);
     }
     
-    onUpdate(clip.id, { left: finalLeft });
-    if (typeof onPositionChange === 'function') {
-      onPositionChange(clip.id, finalLeft);
-    }
+    onUpdate(clip.id, { left: finalLeftSeconds });
   };
 
   const handleDrag = (e) => {
@@ -138,7 +135,8 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
     }
   };
   
-  const clipWidth = clip.duration * 100;
+  const clipWidth = clip.duration * pixelsPerSecond;
+  const leftPosition = clip.left * pixelsPerSecond;
 
   return (
     <div
@@ -148,7 +146,7 @@ const Clip = ({ clip, onUpdate, onPositionChange, trackId, onContextMenu, scroll
           ? 'cursor-not-allowed' 
           : 'cursor-grab active:cursor-grabbing hover:border-white'
       }`}
-      style={{ left: `${clip.left}px`, width: `${clipWidth}px`, opacity: isDragging ? '0.5' : '1' }}
+      style={{ left: `${leftPosition}px`, width: `${clipWidth}px`, opacity: isDragging ? '0.5' : '1' }}
       draggable={!isMusicPlaying}
       onDragStart={handleDragStart}
       onDrag={handleDrag}

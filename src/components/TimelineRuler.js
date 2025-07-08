@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 
 const TimelinePreview = ({
   tracks,
@@ -49,8 +49,11 @@ const TimelinePreview = ({
       {/* Clips */}
       {tracks.map((track, trackIndex) =>
         track.clips.map((clip) => {
-          const leftPercent = (clip.left / totalWidth) * 100;
-          const widthPercent = ((clip.duration * pixelsPerSecond) / totalWidth) * 100;
+          const leftPx = clip.left * pixelsPerSecond;
+          const widthPx = clip.duration * pixelsPerSecond;
+          const leftPercent = (leftPx / totalWidth) * 100;
+          const widthPercent = (widthPx / totalWidth) * 100;
+          
           return (
             <div
               key={clip.id}
@@ -85,9 +88,8 @@ export const TimelinePreviewContainer = ({
   viewportWidth,
   onPreviewNavigate,
   isPreviewOpen,
+  pixelsPerSecond,
 }) => {
-  const pixelsPerSecond = 100;
-
   return (
     <div className="absolute top-0 left-0 w-full h-auto pointer-events-none">
       {isPreviewOpen && tracks.length > 0 && (
@@ -108,26 +110,49 @@ export const TimelinePreviewContainer = ({
   );
 };
 
-const TimelineRuler = ({ noPadding = false, widthPx = 6000 }) => {
-  const pixelsPerSecond = 100;
+const TimelineRuler = ({ noPadding = false, widthPx = 6000, pixelsPerSecond = 100 }) => {
   const totalSeconds = Math.ceil(widthPx / pixelsPerSecond);
   const totalWidth = widthPx;
-  const majorMarkInterval = 5; // seconds
-  const minorMarkInterval = 1; // seconds
 
   const markers = [];
-  for (let i = 0; i <= totalSeconds; i++) {
-    const isMajor = i % majorMarkInterval === 0;
-    const isMinor = i % minorMarkInterval === 0;
+  
+  let majorMarkInterval = 5; // in seconds
+  let minorMarkInterval = 1; // in seconds
+  let subMarkInterval = 0.25; // 1/4 second
+
+  if (pixelsPerSecond > 400) {
+    majorMarkInterval = 1;
+    minorMarkInterval = 0.5;
+    subMarkInterval = 0.125; // 1/8th note
+  } else if (pixelsPerSecond > 150) {
+    majorMarkInterval = 2;
+    minorMarkInterval = 1;
+    subMarkInterval = 0.25;
+  } else if (pixelsPerSecond < 50) {
+    majorMarkInterval = 10;
+    minorMarkInterval = 5;
+    subMarkInterval = 1;
+  }
+
+  for (let i = 0; i <= totalSeconds * (1/subMarkInterval); i++) {
+    const timeInSeconds = i * subMarkInterval;
+    const isMajor = timeInSeconds % majorMarkInterval === 0;
+    const isMinor = timeInSeconds % minorMarkInterval === 0;
+
+    const positionPx = timeInSeconds * pixelsPerSecond;
+
+    if (positionPx > totalWidth) break;
 
     if (isMajor) {
       markers.push(
-        <div key={i} className="absolute h-6 border-l border-bg-light" style={{ left: `${i * pixelsPerSecond}px` }}>
-          <span className="absolute -top-1 text-xs text-text-secondary">{i}</span>
+        <div key={timeInSeconds} className="absolute h-6 border-l border-bg-light" style={{ left: `${positionPx}px` }}>
+          <span className="absolute -top-1 text-xs text-text-secondary">{timeInSeconds}</span>
         </div>
       );
     } else if (isMinor) {
-      markers.push(<div key={i} className="absolute h-4 border-l border-opacity-50 border-bg-light" style={{ left: `${i * pixelsPerSecond}px` }}></div>);
+      markers.push(<div key={timeInSeconds} className="absolute h-4 border-l border-opacity-50 border-bg-light" style={{ left: `${positionPx}px` }}></div>);
+    } else { // sub marks
+      markers.push(<div key={timeInSeconds} className="absolute h-2 border-l border-opacity-25 border-bg-light" style={{ left: `${positionPx}px` }}></div>);
     }
   }
 

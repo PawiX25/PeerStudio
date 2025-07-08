@@ -40,6 +40,7 @@ function App() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const maxHistorySize = 50;
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   const synthesizeSequencerPattern = useCallback(async (pattern, skipBroadcast = false, clipId = null) => {
     const loopDuration = Tone.Time('1m').toSeconds();
@@ -580,7 +581,7 @@ function App() {
       try {
         if (clipToMove.player && clipToMove.player.loaded) {
           clipToMove.player.unsync();
-          clipToMove.player.sync().start(newLeft / 100);
+          clipToMove.player.sync().start(newLeft);
         }
       } catch (error) {
         console.warn('Error updating clip timing during drop:', error);
@@ -624,6 +625,8 @@ function App() {
         onRedo={handleRedo}
         canUndo={historyIndex > 0}
         canRedo={historyIndex < history.length - 1}
+        onZoomChange={setZoomLevel}
+        zoomLevel={zoomLevel}
         className="mobile-landscape-header"
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -649,6 +652,8 @@ function App() {
               onAddTrack={() => addTrack()}
               pushToHistory={pushToHistory}
               isSidebarCollapsed={isSidebarCollapsed}
+              zoomLevel={zoomLevel}
+              onZoomChange={setZoomLevel}
             />
           </div>
           {/* Bottom Instrument Panel - Fixed height, responsive for landscape */}

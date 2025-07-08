@@ -5,7 +5,7 @@ import * as Tone from 'tone';
 import ContextMenu from './ContextMenu';
 import Modal from './Modal';
 
-const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed }) => {
+const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed, zoomLevel, onZoomChange }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [draggedTrackId, setDraggedTrackId] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -18,7 +18,6 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const pixelsPerSecondConst = 100;
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedClip, setSelectedClip] = useState(null);
   const [contentHeight, setContentHeight] = useState(0);
@@ -27,20 +26,26 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
   const [clipForModal, setClipForModal] = useState(null);
   const [newName, setNewName] = useState('');
 
+  const pixelsPerSecond = 100 * zoomLevel;
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e) => {
+      if (e.shiftKey) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY > 0 ? 0.8 : 1.25;
+        onZoomChange(prev => Math.max(0.25, Math.min(4, prev * zoomFactor)));
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [onZoomChange]);
+
   useEffect(() => {
     let rafId;
-    let isUserScrolling = false;
-    let userScrollTimeout;
-
-    const pixelsPerSecond = 100;
-
-    const handleUserScroll = () => {
-      isUserScrolling = true;
-      clearTimeout(userScrollTimeout);
-      userScrollTimeout = setTimeout(() => {
-        isUserScrolling = false;
-      }, 1000);
-    };
 
     const updateRuler = (scrollLeft) => {
       if (rulerRef.current) {
@@ -64,15 +69,14 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
         const smoothFactor = 0.08;
         const newScroll = currentScroll + (targetScroll - currentScroll) * smoothFactor;
         scrollContainerRef.current.scrollLeft = newScroll;
-        updateRuler(scrollContainerRef.current.scrollLeft);
       }
-
+      
+      updateRuler(scrollContainerRef.current?.scrollLeft || 0);
       rafId = requestAnimationFrame(updatePlayhead);
     };
 
     const scrollContainer = scrollContainerRef.current;
     if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleUserScroll, { passive: true });
       scrollContainer.addEventListener('scroll', () => updateRuler(scrollContainer.scrollLeft));
     }
 
@@ -80,12 +84,11 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
     return () => {
       cancelAnimationFrame(rafId);
-      clearTimeout(userScrollTimeout);
       if (scrollContainer) {
-        scrollContainer.removeEventListener('scroll', handleUserScroll);
+        scrollContainer.removeEventListener('scroll', () => updateRuler(scrollContainer.scrollLeft));
       }
     };
-  }, []);
+  }, [isDraggingPlayhead, pixelsPerSecond]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -160,7 +163,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
       let maxClipEnd = 0;
       tracks.forEach(track => {
         track.clips.forEach(clip => {
-          const clipEnd = clip.left + clip.duration * pixelsPerSecondConst;
+          const clipEnd = clip.left * pixelsPerSecond + clip.duration * pixelsPerSecond;
           if (clipEnd > maxClipEnd) maxClipEnd = clipEnd;
         });
       });
@@ -172,7 +175,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
     };
 
     calcWidth();
-  }, [tracks, playheadPosition, viewportWidth]);
+  }, [tracks, playheadPosition, viewportWidth, pixelsPerSecond]);
 
   const handleDragStart = (e, trackId) => {
     if (isMusicPlaying) {
@@ -250,7 +253,6 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
 
     const startX = e.clientX;
     const startPosition = playheadPosition;
-    const pixelsPerSecond = 100;
     
     const handleMouseMove = (e) => {
       const deltaX = e.clientX - startX;
@@ -282,7 +284,6 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
     
     const rect = scrollContainerRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left + scrollContainerRef.current.scrollLeft;
-    const pixelsPerSecond = 100;
     const newTimeSeconds = clickX / pixelsPerSecond;
     
     Tone.Transport.seconds = Math.max(0, newTimeSeconds);
@@ -422,7 +423,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
       <div className="flex-shrink-0 relative z-20 w-full bg-bg-medium" style={{ height: `${rulerAreaHeight}px` }}>
         <div className="sticky top-0 left-0 right-0 overflow-hidden relative h-8 bg-bg-medium border-b border-bg-light w-full z-30 shadow-sm">
           <div ref={rulerRef} className="will-change-transform w-full h-full">
-            <TimelineRuler widthPx={timelineWidth} />
+            <TimelineRuler widthPx={timelineWidth} pixelsPerSecond={pixelsPerSecond} />
           </div>
           {tracks.length > 0 && (
             <button
@@ -442,7 +443,7 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
             viewportWidth={viewportWidth}
             onPreviewNavigate={handlePreviewNavigate}
             isPreviewOpen={isPreviewOpen}
-            onToggle={setIsPreviewOpen}
+            pixelsPerSecond={pixelsPerSecond}
           />
         </div>
       </div>
@@ -518,13 +519,13 @@ const Timeline = ({ tracks, setTracks, timelineChannel, onClipDrop, onAudioImpor
                   <Track
                     track={track}
                     setTracks={setTracks}
-                    timelineChannel={timelineChannel}
                     onClipDrop={onClipDrop}
                     trackId={track.id}
                     onClipContextMenu={showContextMenu}
                     scrollContainerRef={scrollContainerRef}
                     timelineWidth={timelineWidth}
                     setTimelineWidth={setTimelineWidth}
+                    pixelsPerSecond={pixelsPerSecond}
                   />
                 </div>
               </div>
