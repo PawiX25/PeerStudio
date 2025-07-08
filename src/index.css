@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar styles for better UX */
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: #4B5563 transparent;
@@ -28,12 +27,10 @@
   background-color: #6B7280;
 }
 
-/* Ensure minimum height for flex containers */
 .min-h-0 {
   min-height: 0;
 }
 
-/* Responsive height utilities */
 @media (max-height: 600px) {
   .min-instrument-height {
     height: 200px;
@@ -52,7 +49,6 @@
   }
 }
 
-/* Volume slider styling - thin track with circle button */
 .volume-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -153,7 +149,6 @@
   border-color: #6B7280;
 }
 
-/* Unified volume slider - invisible slider that works with visual track */
 .unified-volume-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -262,14 +257,12 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Disable text selection globally */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
 }
 
-/* Allow text selection for input fields and editable content */
 input, textarea, [contenteditable="true"] {
   -webkit-user-select: text;
   -moz-user-select: text;
@@ -277,7 +270,6 @@ input, textarea, [contenteditable="true"] {
   user-select: text;
 }
 
-/* Allow text selection for specific UI elements */
 .allow-text-selection {
   -webkit-user-select: text;
   -moz-user-select: text;
@@ -285,7 +277,6 @@ input, textarea, [contenteditable="true"] {
   user-select: text;
 }
 
-/* Renaming input fields - use !important to override global disable */
 .rename-input {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
@@ -293,7 +284,6 @@ input, textarea, [contenteditable="true"] {
   user-select: text !important;
 }
 
-/* More specific selectors for input elements */
 input.rename-input {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
@@ -301,7 +291,6 @@ input.rename-input {
   user-select: text !important;
 }
 
-/* Ensure all text inputs can be selected */
 input[type="text"] {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
@@ -309,7 +298,6 @@ input[type="text"] {
   user-select: text !important;
 }
 
-/* Prevent drag interference with text selection */
 [draggable="true"] input {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
@@ -318,7 +306,6 @@ input[type="text"] {
   pointer-events: auto !important;
 }
 
-/* Override any global drag prevention for inputs */
 input:focus, input:active {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
@@ -327,35 +314,28 @@ input:focus, input:active {
   -webkit-touch-callout: text !important;
 }
 
-/* Mobile landscape view support */
 @media screen and (max-height: 600px) and (orientation: landscape) {
-  /* Keep channel rack but hide level meters in mobile landscape */
   .mobile-landscape-hide {
     display: none;
   }
   
-  /* Adjust header to be more compact */
   .mobile-landscape-header {
     padding: 0.5rem 1rem;
   }
   
-  /* Make bottom panel smaller in landscape */
   .mobile-landscape-bottom {
     height: min(30vh, 250px) !important;
   }
   
-  /* Stack volume sliders horizontally with smaller height */
   .mobile-landscape-volume {
     height: 80px;
   }
   
-  /* Compact level meters */
   .mobile-landscape-levels {
     max-height: 60px;
   }
 }
 
-/* Channel rack visibility - show at ALL zoom levels except 250%+ */
 .channel-rack-container {
   display: block !important;
   visibility: visible !important;
@@ -363,14 +343,12 @@ input:focus, input:active {
   overflow: visible !important;
 }
 
-/* Only hide channel rack at true 250% zoom (very specific detection) */
 @media screen and (min-width: 4000px), screen and (min-resolution: 300dpi) {
   .channel-rack-container {
     display: none !important;
   }
 }
 
-/* Force visibility at common zoom levels */
 @media screen and (max-width: 3999px) {
   .channel-rack-container {
     display: block !important;
@@ -380,7 +358,6 @@ input:focus, input:active {
   }
 }
 
-/* Override any zoom-based hiding for channel rack at normal sizes */
 @media screen and (max-width: 320px) {
   .channel-rack-container {
     display: block !important;
@@ -388,7 +365,6 @@ input:focus, input:active {
   }
 }
 
-/* Simple volume slider styling - background handled by inline styles */
 .simple-volume-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -485,7 +461,6 @@ input:focus, input:active {
   transform: none;
 }
 
-/* Glow effect for volume sliders */
 .glow-effect {
   position: relative;
 }
