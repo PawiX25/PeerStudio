@@ -74,6 +74,15 @@ const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContaine
   };
 
   const handleDeleteConfirm = () => {
+    const trackToDelete = track;
+    if (trackToDelete && trackToDelete.clips) {
+      trackToDelete.clips.forEach(clip => {
+        if (clip.player) {
+          clip.player.stop();
+          clip.player.dispose();
+        }
+      });
+    }
     setTracks((prev) => prev.filter((t) => t.id !== track.id));
     setDeleteModalOpen(false);
   };
