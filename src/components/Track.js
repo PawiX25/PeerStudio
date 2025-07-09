@@ -14,7 +14,7 @@ const clipColors = [
   'bg-pink-400',
 ];
 
-const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond, soloedTrackId, toggleSoloTrack, soloedClipId }) => {
+const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond, soloedTrackId, toggleSoloTrack, soloedClipId, toggleSoloClip }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -219,7 +219,13 @@ const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContaine
 
   return (
     <div
-      className={`relative h-24 bg-bg-medium rounded-lg border-2 ${isDragOver ? 'border-accent' : 'border-transparent hover:border-accent/50'} ${soloedTrackId === track.id ? 'border-yellow-400' : ''}`}
+      className={`relative h-24 bg-bg-medium rounded-lg border-2 ${
+        soloedTrackId === track.id 
+          ? 'border-yellow-400 shadow-lg shadow-yellow-400/20' 
+          : isDragOver 
+            ? 'border-accent' 
+            : 'border-transparent hover:border-accent/50'
+      }`}
       onContextMenu={showContextMenu}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -283,12 +289,20 @@ const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContaine
           onRename={renameTrack}
           onDelete={deleteTrack}
           onSolo={handleSolo}
+          isSoloed={soloedTrackId === track.id}
           onClose={closeContextMenu}
         />
       )}
       {!isLabelObscured && (
-        <div className="absolute top-2 left-3 text-text-secondary font-bold z-10 pointer-events-none opacity-70">
-          {track.name}
+        <div className="absolute top-2 left-3 flex items-center gap-2 z-10 pointer-events-none">
+          <span className="text-text-secondary font-bold opacity-70">
+            {track.name}
+          </span>
+          {soloedTrackId === track.id && (
+            <span className="text-yellow-400 text-xs font-bold bg-yellow-400/20 px-2 py-0.5 rounded">
+              SOLO
+            </span>
+          )}
         </div>
       )}
       <input
@@ -310,6 +324,7 @@ const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContaine
           setTimelineWidth={setTimelineWidth}
           pixelsPerSecond={pixelsPerSecond}
           soloedClipId={soloedClipId}
+          toggleSoloClip={toggleSoloClip}
         />
       ))}
     </div>

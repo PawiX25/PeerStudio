@@ -19,7 +19,9 @@ const Header = ({
   zoomLevel,
   isMetronomeOn,
   onMetronomeToggle,
-  time
+  time,
+  soloedTrackId,
+  soloedClipId
 }) => {
   const [copied, setCopied] = useState(false);
   
@@ -153,6 +155,14 @@ const Header = ({
         <div className="bg-bg-dark px-3 py-1 rounded-lg">
           <span className="font-mono text-lg text-accent">{formatTime(time)}</span>
         </div>
+        {(soloedTrackId || soloedClipId) && (
+          <>
+            <div className="w-px h-8 bg-bg-light"></div>
+            <div className="bg-yellow-400/20 px-3 py-1 rounded-lg border border-yellow-400/50">
+              <span className="text-yellow-400 font-bold text-sm">SOLO</span>
+            </div>
+          </>
+        )}
         <div className="w-px h-8 bg-bg-light"></div>
         <button
           onClick={onMetronomeToggle}

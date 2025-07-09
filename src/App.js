@@ -54,6 +54,34 @@ function App() {
   const [trackChannels, setTrackChannels] = useState({});
   const [selectedTrackId, setSelectedTrackId] = useState(null);
   const [trackFxSettings, setTrackFxSettings] = useState({});
+  const [soloedTrackId, setSoloedTrackId] = useState(null);
+  const [soloedClipId, setSoloedClipId] = useState(null);
+
+  const toggleSoloTrack = (trackId) => {
+    setSoloedTrackId(prev => prev === trackId ? null : trackId);
+    setSoloedClipId(null);
+  };
+
+  const toggleSoloClip = (clipId) => {
+    setSoloedClipId(prev => prev === clipId ? null : clipId);
+    setSoloedTrackId(null);
+  };
+
+  useEffect(() => {
+    tracks.forEach(track => {
+      track.clips.forEach(clip => {
+        if (clip.player && clip.player.loaded) {
+          if (soloedTrackId) {
+            clip.player.mute = track.id !== soloedTrackId;
+          } else if (soloedClipId) {
+            clip.player.mute = clip.id !== soloedClipId;
+          } else {
+            clip.player.mute = false;
+          }
+        }
+      });
+    });
+  }, [soloedTrackId, soloedClipId, tracks]);
 
   const synthesizeSequencerPattern = useCallback(async (pattern, skipBroadcast = false, clipId = null) => {
     const loopDuration = Tone.Time('1m').toSeconds();
@@ -817,6 +845,8 @@ function App() {
         isMetronomeOn={isMetronomeOn}
         onMetronomeToggle={() => setMetronomeOn(!isMetronomeOn)}
         time={time}
+        soloedTrackId={soloedTrackId}
+        soloedClipId={soloedClipId}
         className="mobile-landscape-header"
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -846,6 +876,10 @@ function App() {
               onZoomChange={setZoomLevel}
               selectedTrackId={selectedTrackId}
               onTrackSelect={setSelectedTrackId}
+              soloedTrackId={soloedTrackId}
+              toggleSoloTrack={toggleSoloTrack}
+              soloedClipId={soloedClipId}
+              toggleSoloClip={toggleSoloClip}
             />
           </div>
           <div className="flex-shrink-0 bg-bg-medium mobile-landscape-bottom" style={{ height: 'min(40vh, 400px)' }}>

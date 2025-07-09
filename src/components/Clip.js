@@ -136,11 +136,15 @@ const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, time
   return (
     <div
       ref={clipRef}
-      className={`absolute h-full top-0 ${clip.color} rounded-lg text-black p-2 box-border overflow-hidden select-none border-2 border-transparent transition-opacity ${
+      className={`absolute h-full top-0 ${clip.color} rounded-lg text-black p-2 box-border overflow-hidden select-none border-2 transition-opacity ${
+        soloedClipId === clip.id 
+          ? 'border-yellow-400 shadow-lg shadow-yellow-400/30' 
+          : 'border-transparent hover:border-white'
+      } ${
         isMusicPlaying 
           ? 'cursor-not-allowed' 
-          : 'cursor-grab active:cursor-grabbing hover:border-white'
-      } ${soloedClipId === clip.id ? 'border-yellow-400' : ''}`}
+          : 'cursor-grab active:cursor-grabbing'
+      }`}
       style={{ left: `${leftPosition}px`, width: `${clipWidth}px`, opacity: isDragging ? '0.5' : '1' }}
       draggable={!isMusicPlaying}
       onDragStart={handleDragStart}
@@ -152,9 +156,16 @@ const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, time
       <div className="absolute inset-0">
         {clip.player.loaded && <Waveform buffer={clip.player.buffer} />}
       </div>
-      <span className="relative z-10 font-semibold text-sm whitespace-nowrap text-ellipsis overflow-hidden">
-        {clip.name}
-      </span>
+      <div className="relative z-10 flex items-center gap-2">
+        <span className="font-semibold text-sm whitespace-nowrap text-ellipsis overflow-hidden">
+          {clip.name}
+        </span>
+        {soloedClipId === clip.id && (
+          <span className="text-yellow-900 text-xs font-bold bg-yellow-400 px-1.5 py-0.5 rounded whitespace-nowrap">
+            SOLO
+          </span>
+        )}
+      </div>
     </div>
   );
 };
