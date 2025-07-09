@@ -41,6 +41,32 @@ function App() {
   const maxHistorySize = 50;
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [soloedTrackId, setSoloedTrackId] = useState(null);
+  const [soloedClipId, setSoloedClipId] = useState(null);
+
+  const toggleSoloTrack = (trackId) => {
+    setSoloedTrackId(prev => prev === trackId ? null : trackId);
+    setSoloedClipId(null);
+  };
+
+  const toggleSoloClip = (clipId) => {
+    setSoloedClipId(prev => prev === clipId ? null : clipId);
+    setSoloedTrackId(null);
+  }
+
+  useEffect(() => {
+    tracks.forEach(track => {
+      track.clips.forEach(clip => {
+        if (soloedTrackId) {
+          clip.player.mute = track.id !== soloedTrackId;
+        } else if (soloedClipId) {
+          clip.player.mute = clip.id !== soloedClipId;
+        } else {
+          clip.player.mute = false;
+        }
+      });
+    });
+  }, [soloedTrackId, soloedClipId, tracks]);
 
   const synthesizeSequencerPattern = useCallback(async (pattern, skipBroadcast = false, clipId = null) => {
     const loopDuration = Tone.Time('1m').toSeconds();
@@ -654,6 +680,10 @@ function App() {
               isSidebarCollapsed={isSidebarCollapsed}
               zoomLevel={zoomLevel}
               onZoomChange={setZoomLevel}
+              soloedTrackId={soloedTrackId}
+              toggleSoloTrack={toggleSoloTrack}
+              soloedClipId={soloedClipId}
+              toggleSoloClip={toggleSoloClip}
             />
           </div>
           {/* Bottom Instrument Panel - Fixed height, responsive for landscape */}

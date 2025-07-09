@@ -5,7 +5,7 @@ import * as Tone from 'tone';
 import ContextMenu from './ContextMenu';
 import Modal from './Modal';
 
-const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed, zoomLevel, onZoomChange }) => {
+const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed, zoomLevel, onZoomChange, soloedTrackId, toggleSoloTrack, soloedClipId, toggleSoloClip }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [draggedTrackId, setDraggedTrackId] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -526,6 +526,9 @@ const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, is
                     timelineWidth={timelineWidth}
                     setTimelineWidth={setTimelineWidth}
                     pixelsPerSecond={pixelsPerSecond}
+                    soloedTrackId={soloedTrackId}
+                    toggleSoloTrack={toggleSoloTrack}
+                    soloedClipId={soloedClipId}
                   />
                 </div>
               </div>
@@ -592,6 +595,7 @@ const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, is
           onAddTrack={contextMenu.type === 'timeline' ? onAddTrack : null}
           onRename={contextMenu.type === 'clip' ? handleRenameClip : null}
           onDelete={contextMenu.type === 'clip' ? handleDeleteClip : null}
+          onSolo={contextMenu.type === 'clip' ? () => toggleSoloClip(selectedClip.id) : null}
           onClose={closeContextMenu}
         />
       )}

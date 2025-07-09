@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import Waveform from './Waveform';
 
-const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond }) => {
+const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond, soloedClipId }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const clipRef = useRef(null);
@@ -145,7 +145,7 @@ const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, time
         isMusicPlaying 
           ? 'cursor-not-allowed' 
           : 'cursor-grab active:cursor-grabbing hover:border-white'
-      }`}
+      } ${soloedClipId === clip.id ? 'border-yellow-400' : ''}`}
       style={{ left: `${leftPosition}px`, width: `${clipWidth}px`, opacity: isDragging ? '0.5' : '1' }}
       draggable={!isMusicPlaying}
       onDragStart={handleDragStart}

@@ -8,6 +8,7 @@ const ContextMenu = ({
   onImportAudio,
   onExportAudio,
   onAddTrack,
+  onSolo,
   onClose,
 }) => {
   const menuRef = useRef(null);
@@ -84,6 +85,16 @@ const ContextMenu = ({
               className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-dark"
             >
               Add Track
+            </button>
+          </li>
+        )}
+        {onSolo && (
+          <li>
+            <button
+              onClick={createHandler(onSolo)}
+              className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-dark"
+            >
+              Solo
             </button>
           </li>
         )}

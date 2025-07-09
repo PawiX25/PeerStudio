@@ -14,7 +14,7 @@ const clipColors = [
   'bg-pink-400',
 ];
 
-const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond }) => {
+const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContainerRef, timelineWidth, setTimelineWidth, pixelsPerSecond, soloedTrackId, toggleSoloTrack, soloedClipId }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -212,9 +212,14 @@ const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContaine
 
   const exportAudio = () => exportTrackAudio();
 
+  const handleSolo = () => {
+    toggleSoloTrack(track.id);
+    closeContextMenu();
+  }
+
   return (
     <div
-      className={`relative h-24 bg-bg-medium rounded-lg border-2 ${isDragOver ? 'border-accent' : 'border-transparent hover:border-accent/50'}`}
+      className={`relative h-24 bg-bg-medium rounded-lg border-2 ${isDragOver ? 'border-accent' : 'border-transparent hover:border-accent/50'} ${soloedTrackId === track.id ? 'border-yellow-400' : ''}`}
       onContextMenu={showContextMenu}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -277,6 +282,7 @@ const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContaine
           onExportAudio={exportAudio}
           onRename={renameTrack}
           onDelete={deleteTrack}
+          onSolo={handleSolo}
           onClose={closeContextMenu}
         />
       )}
@@ -312,6 +318,7 @@ const Track = ({ track, setTracks, onClipDrop, onClipContextMenu, scrollContaine
           timelineWidth={timelineWidth}
           setTimelineWidth={setTimelineWidth}
           pixelsPerSecond={pixelsPerSecond}
+          soloedClipId={soloedClipId}
         />
       ))}
     </div>
