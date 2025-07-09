@@ -7,12 +7,13 @@ import StepSequencer from './components/StepSequencer';
 import Synthesizer from './components/Synthesizer';
 import AudioImport from './components/AudioImport';
 import BassInstruments from './components/BassInstruments';
-
+import EffectsRack, { defaultFxSettings } from './components/EffectsRack';
 import ExportOptions from './components/ExportOptions';
 import Tabs, { Tab } from './components/Tabs';
 import * as Tone from 'tone';
 import Peer from 'peerjs';
 import generateId from './utils/generateId';
+import { debugAudioRouting, checkForAudioLeaks, testAudioFlow } from './utils/debugAudio';
 
 const clipColors = ['bg-orange-400', 'bg-blue-400', 'bg-purple-400', 'bg-green-400', 'bg-yellow-400', 'bg-pink-400'];
 
@@ -27,6 +28,13 @@ function App() {
   const [tracks, setTracks] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [activeInstrumentTab, setActiveInstrumentTab] = useState('Step Sequencer');
+  
+  const handleTabChange = (tabName) => {
+    setActiveInstrumentTab(tabName);
+    if (tabName === 'Effects Rack' && tracks.length > 0 && !selectedTrackId) {
+      setSelectedTrackId(tracks[0].id);
+    }
+  };
   const activeNotes = useRef([]);
   const recordedNotes = useRef([]);
   const timelineChannel = useRef(new Tone.Channel().toDestination());
@@ -41,32 +49,11 @@ function App() {
   const maxHistorySize = 50;
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [soloedTrackId, setSoloedTrackId] = useState(null);
-  const [soloedClipId, setSoloedClipId] = useState(null);
-
-  const toggleSoloTrack = (trackId) => {
-    setSoloedTrackId(prev => prev === trackId ? null : trackId);
-    setSoloedClipId(null);
-  };
-
-  const toggleSoloClip = (clipId) => {
-    setSoloedClipId(prev => prev === clipId ? null : clipId);
-    setSoloedTrackId(null);
-  }
-
-  useEffect(() => {
-    tracks.forEach(track => {
-      track.clips.forEach(clip => {
-        if (soloedTrackId) {
-          clip.player.mute = track.id !== soloedTrackId;
-        } else if (soloedClipId) {
-          clip.player.mute = clip.id !== soloedClipId;
-        } else {
-          clip.player.mute = false;
-        }
-      });
-    });
-  }, [soloedTrackId, soloedClipId, tracks]);
+  const [isMetronomeOn, setMetronomeOn] = useState(false);
+  const [time, setTime] = useState(0);
+  const [trackChannels, setTrackChannels] = useState({});
+  const [selectedTrackId, setSelectedTrackId] = useState(null);
+  const [trackFxSettings, setTrackFxSettings] = useState({});
 
   const synthesizeSequencerPattern = useCallback(async (pattern, skipBroadcast = false, clipId = null) => {
     const loopDuration = Tone.Time('1m').toSeconds();
@@ -216,12 +203,108 @@ function App() {
         } else {
           handlePlay();
         }
+      } else if (e.key === 'd' && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        console.log('🔍 Debug Audio Routing');
+        debugAudioRouting();
+        checkForAudioLeaks();
+        console.log('Track Channels:', trackChannels);
+        console.log('Selected Track:', selectedTrackId);
+        if (selectedTrackId && trackChannels[selectedTrackId]) {
+          testAudioFlow(trackChannels[selectedTrackId]);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, handlePlay, handlePause]);
+  }, [handleUndo, handleRedo, handlePlay, handlePause, trackChannels, selectedTrackId]);
+
+  const metronomeRef = useRef(null);
+  const metronomeLoopRef = useRef(null);
+  
+  const metronomeChannelRef = useRef(null);
+  
+  useEffect(() => {
+    if (!metronomeRef.current) {
+      metronomeChannelRef.current = new Tone.Channel(-10).toDestination();
+      
+      metronomeRef.current = new Tone.MembraneSynth({
+        pitchDecay: 0.05,
+        octaves: 3,
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+      }).connect(metronomeChannelRef.current);
+      
+      metronomeLoopRef.current = new Tone.Loop((time) => {
+        if (metronomeRef.current) {
+          metronomeRef.current.triggerAttackRelease("C5", "16n", time);
+        }
+      }, "4n").start(0);
+    }
+    
+    return () => {
+      if (metronomeLoopRef.current) {
+        metronomeLoopRef.current.stop();
+        metronomeLoopRef.current.dispose();
+        metronomeLoopRef.current = null;
+      }
+      if (metronomeRef.current) {
+        metronomeRef.current.dispose();
+        metronomeRef.current = null;
+      }
+      if (metronomeChannelRef.current) {
+        metronomeChannelRef.current.dispose();
+        metronomeChannelRef.current = null;
+      }
+    };
+  }, []);
+  
+  useEffect(() => {
+    if (metronomeLoopRef.current) {
+      metronomeLoopRef.current.mute = !isMetronomeOn;
+    }
+  }, [isMetronomeOn]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (Tone.Transport.state === 'started') {
+        setTime(Tone.Transport.seconds);
+      }
+}, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+  
+  useEffect(() => {
+    tracks.forEach(track => {
+      if (!trackChannels[track.id]) {
+        
+        const channel = createChannelWithEffects();
+        
+        setTrackChannels(prev => ({ ...prev, [track.id]: channel }));
+      }
+    });
+  }, [tracks, trackChannels]);
+
+  useEffect(() => {
+    tracks.forEach(track => {
+      const channel = trackChannels[track.id];
+      if (!channel) return;
+
+      track.clips.forEach(clip => {
+        if (clip.player && clip.player.loaded && clip.connectedChannelId !== track.id) {
+          try {
+            clip.player.disconnect();
+            clip.player.connect(channel);
+            clip.connectedChannelId = track.id;
+          } catch (err) {
+            console.warn('Error connecting clip:', err);
+          }
+        }
+      });
+    });
+  }, [tracks, trackChannels]);
 
   const connectToPeer = () => {
     if (!remotePeerId || !peerRef.current) return;
@@ -241,8 +324,46 @@ function App() {
     });
   };
 
+  const updateTrackFxSettings = (trackId, settings) => {
+    setTrackFxSettings(prev => ({ ...prev, [trackId]: settings }));
+  };
+
+  const createChannelWithEffects = () => {
+    const channel = new Tone.Channel();
+    
+    const effects = {
+      compressor: new Tone.Compressor({ threshold: 0, ratio: 1 }),
+      eq: new Tone.EQ3({ low: 0, mid: 0, high: 0 }),
+      distortion: new Tone.Distortion({ distortion: 0.3, wet: 0 }),
+      chorus: new Tone.Chorus({ frequency: 1.5, depth: 0.7, spread: 180, wet: 0 }).start(),
+      delay: new Tone.FeedbackDelay({ delayTime: '8n', feedback: 0.2, wet: 0 }),
+      reverb: new Tone.Reverb({ decay: 2, wet: 0 })
+    };
+    
+    channel.chain(
+      effects.compressor,
+      effects.eq,
+      effects.distortion,
+      effects.chorus,
+      effects.delay,
+      effects.reverb,
+      Tone.Destination
+    );
+    
+    channel._effects = effects;
+    
+    
+    return channel;
+  };
+
   const addTrack = (name, trackId = null) => {
-    const newTrack = { id: trackId || generateId(), name: name || `Track ${tracks.length + 1}`, clips: [] };
+    const newTrackId = trackId || generateId();
+    const newTrack = { id: newTrackId, name: name || `Track ${tracks.length + 1}`, clips: [] };
+    
+    const newChannel = createChannelWithEffects();
+    
+    setTrackChannels(prev => ({ ...prev, [newTrackId]: newChannel }));
+    
     setTracks(prev => {
       const newTracks = [...prev, newTrack];
       pushToHistory(newTracks);
@@ -250,12 +371,12 @@ function App() {
     });
   };
 
-
   const handleStop = useCallback(() => {
     Tone.Transport.stop();
     Tone.Transport.seconds = 0;
     timelineChannel.current.mute = false;
     sequencerChannel.current.mute = true;
+    setTime(0);
   }, []);
 
   const handleRecord = () => {
@@ -270,7 +391,6 @@ function App() {
       setIsRecording(true);
     }
   };
-
 
   const synthesizePianoRecording = async (recording, skipBroadcast = false, clipId = null, trackName = 'Synth') => {
     if (!recording || recording.length === 0) return;
@@ -497,6 +617,7 @@ function App() {
       
       const player = new Tone.Player(url, () => {
         const randomColor = clipColors[Math.floor(Math.random() * clipColors.length)];
+        const trackId = generateId();
         const newClip = {
           id: generateId(),
           name: file.name.replace(/\.[^/.]+$/, ''),
@@ -505,6 +626,12 @@ function App() {
           left: 0,
           color: randomColor,
         };
+        
+        const newChannel = createChannelWithEffects();
+        setTrackChannels(prev => ({ ...prev, [trackId]: newChannel }));
+        
+        player.disconnect();
+        player.connect(newChannel);
         
         setTracks((prevTracks) => {
           const existingNames = new Set(prevTracks.map(t => t.name));
@@ -515,13 +642,12 @@ function App() {
             newName = `Audio Import ${i}`;
           }
           
-          const newTrack = { id: generateId(), name: newName, clips: [newClip] };
+          const newTrack = { id: trackId, name: newName, clips: [newClip] };
           const newTracks = [...prevTracks, newTrack];
           pushToHistory(newTracks);
           return newTracks;
         });
         
-        player.connect(timelineChannel.current);
         player.sync().start(0);
         
         URL.revokeObjectURL(url);
@@ -533,11 +659,11 @@ function App() {
     }
   };
 
-
   const addBufferToTrack = (buffer, trackNamePrefix = 'Track', clipId = null) => {
-    const player = new Tone.Player(buffer).connect(timelineChannel.current);
     const randomColor = clipColors[Math.floor(Math.random() * clipColors.length)];
     const newClipId = clipId || generateId();
+    let player = null;
+    let trackId = null;
 
     const createClip = (forTrackName) => ({
       id: newClipId,
@@ -561,22 +687,48 @@ function App() {
       const tracksCopy = [...prevTracks];
       
       if (trackIndex === -1) {
-        const newTrack = { id: generateId(), name: newName, clips: [createClip(newName)] };
+        trackId = generateId();
+        const newTrack = { id: trackId, name: newName, clips: [] };
+        
+        const newChannel = createChannelWithEffects();
+        setTrackChannels(prev => ({ ...prev, [trackId]: newChannel }));
+        
+        player = new Tone.Player(buffer).connect(newChannel);
+        newTrack.clips = [createClip(newName)];
+        
         tracksCopy.push(newTrack);
         pushToHistory(tracksCopy);
+        
+        setTimeout(() => {
+          player.sync().start(0);
+        }, 0);
+        
         return tracksCopy;
       }
 
       const track = tracksCopy[trackIndex];
+      trackId = track.id;
+      
+      let channel = trackChannels[trackId];
+      if (!channel) {
+        channel = createChannelWithEffects();
+        setTrackChannels(prev => ({ ...prev, [trackId]: channel }));
+      }
+      
+      player = new Tone.Player(buffer).connect(channel);
+      
       if (!track.clips.some(c => c.id === newClipId)) {
         track.clips = [...track.clips, createClip(track.name)];
         tracksCopy[trackIndex] = track;
       }
       pushToHistory(tracksCopy);
+      
+      setTimeout(() => {
+        player.sync().start(0);
+      }, 0);
+      
       return tracksCopy;
     });
-
-    player.sync().start(0);
   };
 
   const handleClipDrop = (clipId, sourceTrackId, destinationTrackId, newLeft) => {
@@ -607,10 +759,19 @@ function App() {
       try {
         if (clipToMove.player && clipToMove.player.loaded) {
           clipToMove.player.unsync();
+          clipToMove.player.disconnect();
+          
+          let destChannel = trackChannels[destinationTrackId];
+          if (!destChannel) {
+            destChannel = createChannelWithEffects();
+            setTrackChannels(prev => ({ ...prev, [destinationTrackId]: destChannel }));
+          }
+          
+          clipToMove.player.connect(destChannel);
           clipToMove.player.sync().start(newLeft);
         }
       } catch (error) {
-        console.warn('Error updating clip timing during drop:', error);
+        console.warn('Error updating clip during drop:', error);
       }
 
       const destinationTrackIndex = newTracks.findIndex(t => t.id === destinationTrackId);
@@ -653,6 +814,9 @@ function App() {
         canRedo={historyIndex < history.length - 1}
         onZoomChange={setZoomLevel}
         zoomLevel={zoomLevel}
+        isMetronomeOn={isMetronomeOn}
+        onMetronomeToggle={() => setMetronomeOn(!isMetronomeOn)}
+        time={time}
         className="mobile-landscape-header"
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -667,12 +831,12 @@ function App() {
           />
         </div>
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Timeline Section - Takes remaining space but allows bottom panel */}
           <div className="flex-1 min-h-0 overflow-hidden">
             <Timeline
               tracks={tracks}
               setTracks={setTracks}
               timelineChannel={timelineChannel}
+              trackChannels={trackChannels}
               onClipDrop={handleClipDrop}
               onAudioImport={handleAudioImport}
               onAddTrack={() => addTrack()}
@@ -680,15 +844,12 @@ function App() {
               isSidebarCollapsed={isSidebarCollapsed}
               zoomLevel={zoomLevel}
               onZoomChange={setZoomLevel}
-              soloedTrackId={soloedTrackId}
-              toggleSoloTrack={toggleSoloTrack}
-              soloedClipId={soloedClipId}
-              toggleSoloClip={toggleSoloClip}
+              selectedTrackId={selectedTrackId}
+              onTrackSelect={setSelectedTrackId}
             />
           </div>
-          {/* Bottom Instrument Panel - Fixed height, responsive for landscape */}
           <div className="flex-shrink-0 bg-bg-medium mobile-landscape-bottom" style={{ height: 'min(40vh, 400px)' }}>
-            <Tabs activeTab={activeInstrumentTab} onTabClick={setActiveInstrumentTab}>
+            <Tabs activeTab={activeInstrumentTab} onTabClick={handleTabChange}>
               <Tab label="Step Sequencer">
                 <StepSequencer
                   onExport={synthesizeSequencerPattern}
@@ -708,8 +869,24 @@ function App() {
               <Tab label="Audio Import">
                 <AudioImport onImport={handleAudioImport} />
               </Tab>
+              <Tab label="Effects Rack">
+                {selectedTrackId && trackChannels[selectedTrackId] ? (
+                  <EffectsRack
+                    trackId={selectedTrackId}
+                    trackName={tracks.find(t => t.id === selectedTrackId)?.name || 'Unknown'}
+                    channel={trackChannels[selectedTrackId]}
+                    settings={trackFxSettings[selectedTrackId] || defaultFxSettings}
+                    onSettingsChange={updateTrackFxSettings}
+                  />
+                ) : (
+                  <div className="p-8 text-center text-text-secondary">
+                    <p className="text-lg mb-2">No track selected</p>
+                    <p className="text-sm">Click on a track in the timeline to apply effects</p>
+                  </div>
+                )}
+              </Tab>
               <Tab label="Export Options">
-                <ExportOptions tracks={tracks} />
+                <ExportOptions tracks={tracks} trackFxSettings={trackFxSettings} />
               </Tab>
             </Tabs>
           </div>

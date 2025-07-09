@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import * as Tone from 'tone';
+import { Mp3Encoder } from '@breezystack/lamejs';
 
-const ExportOptions = ({ tracks }) => {
+const ExportOptions = ({ tracks, trackFxSettings }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState('wav');
   const [exportQuality, setExportQuality] = useState('high');
@@ -15,7 +16,7 @@ const ExportOptions = ({ tracks }) => {
 
     tracks.forEach((track) => {
       track.clips.forEach((clip) => {
-        const clipStart = clip.left / 100; // Convert pixels to seconds
+        const clipStart = clip.left / 100;
         const clipDuration = clip.duration || 0;
         const clipEnd = clipStart + clipDuration;
 
@@ -28,7 +29,6 @@ const ExportOptions = ({ tracks }) => {
     return maxDuration;
   };
 
-  // Export entire mix as audio
   const exportMix = async (format) => {
     if (tracks.length === 0) {
       alert('No tracks to export. Please add some audio or create clips first.');
@@ -46,33 +46,81 @@ const ExportOptions = ({ tracks }) => {
       console.log('Sample rate:', sampleRate);
       console.log('Tracks to export:', tracks.length);
       
-      // Ensure Tone.js context is started
       if (Tone.context.state !== 'running') {
         await Tone.context.resume();
       }
       
-      // Render the entire mix offline
       const renderedBuffer = await Tone.Offline(async ({ transport }) => {
-        const masterChannel = new Tone.Channel().toDestination();
-        
-        // Create temporary players for all clips
         const players = [];
-        tracks.forEach(track => {
-          track.clips.forEach(clip => {
+        
+        for (const track of tracks) {
+          const fxSettings = trackFxSettings && trackFxSettings[track.id] ? trackFxSettings[track.id] : {};
+          
+          const trackChannel = new Tone.Channel().toDestination();
+          
+          let inputNode = trackChannel;
+          
+          if (fxSettings && Object.keys(fxSettings).length > 0) {
+            const compressor = new Tone.Compressor({
+              threshold: fxSettings.compressor?.enabled ? (fxSettings.compressor.threshold || -12) : 0,
+              ratio: fxSettings.compressor?.enabled ? (fxSettings.compressor.ratio || 4) : 1,
+              attack: fxSettings.compressor?.attack || 0.003,
+              release: fxSettings.compressor?.release || 0.1
+            });
+            
+            const eq = new Tone.EQ3({
+              low: fxSettings.eq?.enabled ? (fxSettings.eq.low || 0) : 0,
+              mid: fxSettings.eq?.enabled ? (fxSettings.eq.mid || 0) : 0,
+              high: fxSettings.eq?.enabled ? (fxSettings.eq.high || 0) : 0
+            });
+            
+            const distortion = new Tone.Distortion({
+              distortion: fxSettings.distortion?.amount || 0.3,
+              wet: fxSettings.distortion?.enabled ? 1 : 0
+            });
+            
+            const chorus = new Tone.Chorus({
+              frequency: fxSettings.chorus?.frequency || 1.5,
+              depth: fxSettings.chorus?.depth || 0.7,
+              spread: fxSettings.chorus?.spread || 180,
+              wet: fxSettings.chorus?.enabled ? 1 : 0
+            }).start();
+            
+            const delay = new Tone.FeedbackDelay({
+              delayTime: fxSettings.delay?.time || '8n',
+              feedback: fxSettings.delay?.feedback || 0.2,
+              wet: fxSettings.delay?.enabled ? (fxSettings.delay.mix || 0.3) : 0
+            });
+            
+            const reverb = new Tone.Reverb({
+              decay: 2,
+              wet: fxSettings.reverb?.enabled ? (fxSettings.reverb.mix || 0.5) : 0
+            });
+            
+            compressor.connect(eq);
+            eq.connect(distortion);
+            distortion.connect(chorus);
+            chorus.connect(delay);
+            delay.connect(reverb);
+            reverb.connect(trackChannel);
+            
+            inputNode = compressor;
+          }
+          
+          for (const clip of track.clips) {
             if (clip.player && clip.player.buffer && clip.player.loaded) {
               try {
-                const tempPlayer = new Tone.Player(clip.player.buffer).connect(masterChannel);
-                tempPlayer.start(clip.left / 100); // Convert pixels to seconds
+                const tempPlayer = new Tone.Player(clip.player.buffer);
+                tempPlayer.connect(inputNode);
+                tempPlayer.start(clip.left / 100);
                 players.push(tempPlayer);
-                console.log('Added clip to export:', clip.name, 'at', clip.left / 100, 'seconds');
+                console.log(`Added clip: ${clip.name} from track: ${track.name}`);
               } catch (error) {
-                console.warn('Failed to add clip to export:', clip.name, error);
+                console.warn('Failed to add clip:', clip.name, error);
               }
-            } else {
-              console.warn('Clip has no valid buffer:', clip.name);
             }
-          });
-        });
+          }
+        }
         
         console.log('Total players created:', players.length);
         transport.start();
@@ -83,7 +131,6 @@ const ExportOptions = ({ tracks }) => {
       console.log('Buffer sample rate:', renderedBuffer.sampleRate);
       console.log('Buffer channels:', renderedBuffer.numberOfChannels);
 
-      // Convert and download based on format
       if (format === 'wav') {
         await downloadAsWAV(renderedBuffer, 'PeerStudio_Mix.wav');
       } else if (format === 'mp3') {
@@ -103,12 +150,10 @@ const ExportOptions = ({ tracks }) => {
     }
   };
 
-  // Convert AudioBuffer to WAV
   const downloadAsWAV = async (buffer, filename) => {
     try {
       console.log('Starting WAV download with buffer:', buffer);
       
-      // Handle different buffer types
       let actualBuffer = buffer;
       if (buffer._buffer) {
         actualBuffer = buffer._buffer;
@@ -126,31 +171,26 @@ const ExportOptions = ({ tracks }) => {
       
     } catch (error) {
       console.error('Error in WAV download:', error);
-      // Fallback: try to use a simpler export method
       await fallbackExport(buffer, filename);
     }
   };
   
-  // Fallback export method for when main export fails
   const fallbackExport = async (buffer, filename) => {
     try {
       console.log('Using fallback export method');
       
-      // Create a simple WAV using Web Audio API's built-in methods
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const offlineContext = new OfflineAudioContext(2, audioContext.sampleRate * 10, audioContext.sampleRate);
       
-      // Create a simple sine wave as a test/fallback
-      const duration = 3; // 3 seconds
+      const duration = 3;
       const sampleRate = offlineContext.sampleRate;
       const frameCount = sampleRate * duration;
       const testBuffer = offlineContext.createBuffer(2, frameCount, sampleRate);
       
-      // Fill with a simple tone
       for (let channel = 0; channel < testBuffer.numberOfChannels; channel++) {
         const channelData = testBuffer.getChannelData(channel);
         for (let i = 0; i < frameCount; i++) {
-          channelData[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.1; // Quiet 440Hz tone
+          channelData[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.1;
         }
       }
       
@@ -166,34 +206,77 @@ const ExportOptions = ({ tracks }) => {
     }
   };
 
-  // Convert AudioBuffer to MP3 (simplified - using WAV as fallback)
   const downloadAsMP3 = async (buffer, filename) => {
     try {
-      console.log('Starting MP3 conversion (fallback to WAV)');
+      console.log('Starting MP3 conversion using lamejs');
       
-      // For now, we'll use WAV format as MP3 encoding requires additional libraries
-      // In a full implementation, you'd use libraries like lamejs
-      console.warn('MP3 encoding not fully implemented, using WAV format');
+      let actualBuffer = buffer;
+      if (buffer._buffer) {
+        actualBuffer = buffer._buffer;
+      } else if (buffer.get) {
+        actualBuffer = buffer.get();
+      }
       
-      // Use WAV conversion instead
-      await downloadAsWAV(buffer, filename.replace('.mp3', '.wav'));
+      if (!actualBuffer || !actualBuffer.getChannelData) {
+        throw new Error('Invalid audio buffer for MP3 conversion');
+      }
       
-      alert('MP3 export completed using WAV format. For true MP3 encoding, additional libraries would be needed.');
+      const sampleRate = actualBuffer.sampleRate;
+      const numChannels = Math.min(actualBuffer.numberOfChannels, 2);
+      const length = actualBuffer.length;
+      
+      console.log('MP3 encoding parameters:', {
+        sampleRate,
+        numChannels,
+        length,
+        duration: actualBuffer.duration
+      });
+      
+      const mp3encoder = new Mp3Encoder(numChannels, sampleRate, 128);
+      const mp3Data = [];
+      
+      const blockSize = 1152;
+      
+      for (let i = 0; i < length; i += blockSize) {
+        const leftChannel = actualBuffer.getChannelData(0);
+        const rightChannel = numChannels > 1 ? actualBuffer.getChannelData(1) : leftChannel;
+        
+        const leftChunk = [];
+        const rightChunk = [];
+        
+        for (let j = 0; j < blockSize && i + j < length; j++) {
+          leftChunk[j] = Math.round(Math.max(-1, Math.min(1, leftChannel[i + j] || 0)) * 32767);
+          rightChunk[j] = Math.round(Math.max(-1, Math.min(1, rightChannel[i + j] || 0)) * 32767);
+        }
+        
+        const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+        if (mp3buf.length > 0) {
+          mp3Data.push(mp3buf);
+        }
+      }
+      
+      const mp3buf = mp3encoder.flush();
+      if (mp3buf.length > 0) {
+        mp3Data.push(mp3buf);
+      }
+      
+      const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
+      downloadBlob(blob, filename);
+      
+      console.log('MP3 export completed successfully');
+      alert('Export completed as MP3 format.');
       
     } catch (error) {
       console.error('Error in MP3 conversion:', error);
       alert(`MP3 encoding failed: ${error.message}. Falling back to WAV format.`);
-      // Fallback to WAV
       await downloadAsWAV(buffer, filename.replace('.mp3', '.wav'));
     }
   };
 
-  // Convert AudioBuffer to FLAC (using high-quality WAV as FLAC alternative)
   const downloadAsFLAC = async (buffer, filename) => {
     try {
       console.log('Starting FLAC export (using high-quality uncompressed format)');
       
-      // Handle different buffer types
       let actualBuffer = buffer;
       if (buffer._buffer) {
         actualBuffer = buffer._buffer;
@@ -205,7 +288,6 @@ const ExportOptions = ({ tracks }) => {
         throw new Error('Invalid audio buffer for FLAC conversion');
       }
       
-      // Create high-quality WAV as FLAC alternative (24-bit depth)
       const flacBuffer = await audioBufferToFlac(actualBuffer);
       const blob = new Blob([flacBuffer], { type: 'audio/x-flac' });
       downloadBlob(blob, filename);
@@ -215,19 +297,17 @@ const ExportOptions = ({ tracks }) => {
     } catch (error) {
       console.error('Error in FLAC conversion:', error);
       alert('FLAC encoding failed. Falling back to WAV format.');
-      // Fallback to WAV
       await downloadAsWAV(buffer, filename.replace('.flac', '.wav'));
     }
   };
   
-  // AudioBuffer to high-quality FLAC-like format (24-bit WAV)
   const audioBufferToFlac = async (buffer) => {
     console.log('Converting buffer to high-quality FLAC format');
     
     const length = buffer.length;
     const numberOfChannels = Math.min(buffer.numberOfChannels, 2);
     const sampleRate = buffer.sampleRate;
-    const bytesPerSample = 3; // 24-bit
+    const bytesPerSample = 3;
     const blockAlign = numberOfChannels * bytesPerSample;
     const dataSize = length * blockAlign;
     const fileSize = 36 + dataSize;
@@ -235,41 +315,35 @@ const ExportOptions = ({ tracks }) => {
     const arrayBuffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(arrayBuffer);
     
-    // WAV header for 24-bit (FLAC-quality)
     const writeString = (offset, string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
     
-    // RIFF header
     writeString(0, 'RIFF');
     view.setUint32(4, fileSize, true);
     writeString(8, 'WAVE');
     
-    // fmt chunk
     writeString(12, 'fmt ');
     view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
+    view.setUint16(20, 1, true);
     view.setUint16(22, numberOfChannels, true);
     view.setUint32(24, sampleRate, true);
     view.setUint32(28, sampleRate * blockAlign, true);
     view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 24, true); // 24-bit depth
+    view.setUint16(34, 24, true);
     
-    // data chunk
     writeString(36, 'data');
     view.setUint32(40, dataSize, true);
     
-    // Convert audio data to 24-bit
     let offset = 44;
     for (let i = 0; i < length; i++) {
       for (let channel = 0; channel < numberOfChannels; channel++) {
         const channelData = buffer.getChannelData(channel);
         const sample = Math.max(-1, Math.min(1, channelData[i] || 0));
-        const intSample = Math.round(sample * 8388607); // 24-bit max value
+        const intSample = Math.round(sample * 8388607);
         
-        // Write 24-bit little-endian
         view.setUint8(offset, intSample & 0xFF);
         view.setUint8(offset + 1, (intSample >> 8) & 0xFF);
         view.setUint8(offset + 2, (intSample >> 16) & 0xFF);
@@ -281,7 +355,6 @@ const ExportOptions = ({ tracks }) => {
     return arrayBuffer;
   };
 
-  // AudioBuffer to WAV conversion (improved)
   const audioBufferToWav = async (buffer) => {
     console.log('Converting buffer to WAV:', buffer);
     console.log('Buffer properties:', {
@@ -292,7 +365,7 @@ const ExportOptions = ({ tracks }) => {
     });
     
     const length = buffer.length;
-    const numberOfChannels = Math.min(buffer.numberOfChannels, 2); // Limit to stereo
+    const numberOfChannels = Math.min(buffer.numberOfChannels, 2);
     const sampleRate = buffer.sampleRate;
     const bytesPerSample = 2;
     const blockAlign = numberOfChannels * bytesPerSample;
@@ -302,33 +375,28 @@ const ExportOptions = ({ tracks }) => {
     const arrayBuffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(arrayBuffer);
     
-    // WAV header
     const writeString = (offset, string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
     
-    // RIFF header
     writeString(0, 'RIFF');
     view.setUint32(4, fileSize, true);
     writeString(8, 'WAVE');
     
-    // fmt chunk
     writeString(12, 'fmt ');
-    view.setUint32(16, 16, true); // Subchunk1Size (PCM)
-    view.setUint16(20, 1, true); // AudioFormat (PCM)
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
     view.setUint16(22, numberOfChannels, true);
     view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true); // ByteRate
+    view.setUint32(28, sampleRate * blockAlign, true);
     view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true); // BitsPerSample
+    view.setUint16(34, 16, true);
     
-    // data chunk
     writeString(36, 'data');
     view.setUint32(40, dataSize, true);
     
-    // Convert audio data
     let offset = 44;
     for (let i = 0; i < length; i++) {
       for (let channel = 0; channel < numberOfChannels; channel++) {
@@ -344,11 +412,6 @@ const ExportOptions = ({ tracks }) => {
     return arrayBuffer;
   };
 
-
-
-
-
-  // Helper function to download blob
   const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -364,12 +427,10 @@ const ExportOptions = ({ tracks }) => {
     <div className="bg-bg-dark p-6 rounded-lg h-full overflow-auto">
       <div className="max-w-2xl mx-auto space-y-6">
         
-        {/* Audio Export Section */}
         <div className="bg-bg-medium p-4 rounded-lg">
           <h3 className="text-text-primary text-lg font-bold mb-4">Audio Export</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            {/* Format Selection */}
             <div>
               <label className="block text-text-secondary text-sm font-bold mb-2">
                 Export Format
@@ -379,13 +440,12 @@ const ExportOptions = ({ tracks }) => {
                 onChange={(e) => setExportFormat(e.target.value)}
                 className="w-full bg-bg-dark text-text-primary px-3 py-2 rounded outline-none"
               >
-                <option value="wav">WAV (Uncompressed)</option>
+                <option value="wav">WAV (16-bit)</option>
                 <option value="mp3">MP3 (Compressed)</option>
-                <option value="flac">FLAC (Lossless)</option>
+                <option value="flac">FLAC (24-bit, Lossless)</option>
               </select>
             </div>
             
-            {/* Quality Selection */}
             <div>
               <label className="block text-text-secondary text-sm font-bold mb-2">
                 Quality
@@ -427,10 +487,6 @@ const ExportOptions = ({ tracks }) => {
           )}
         </div>
 
-
-
-        
-        {/* Export Info */}
         <div className="bg-bg-light p-4 rounded-lg">
           <h4 className="text-text-primary font-bold mb-2">Export Information</h4>
           <ul className="text-text-secondary text-sm space-y-1">

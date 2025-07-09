@@ -513,6 +513,120 @@ input:focus, input:active {
   transform: none;
 }
 
+.effects-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(to right, #22c55e 0%, #22c55e var(--value), #4a5568 var(--value), #4a5568 100%);
+}
+
+.effects-slider:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.effects-slider::-webkit-slider-track {
+  width: 100%;
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+  border: none;
+}
+
+.effects-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #22c55e;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  margin-top: -6px;
+}
+
+.effects-slider::-webkit-slider-thumb:hover {
+  background: #f8fafc;
+  border-color: #16a34a;
+  box-shadow: 0 3px 10px rgba(34, 197, 94, 0.4);
+  transform: scale(1.1);
+}
+
+.effects-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  background: #e2e8f0;
+  border-color: #15803d;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
+}
+
+.effects-slider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: #4a5568;
+  border-radius: 3px;
+  border: none;
+}
+
+.effects-slider::-moz-range-progress {
+  height: 6px;
+  background: #22c55e;
+  border-radius: 3px;
+  border: none;
+}
+
+.effects-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #22c55e;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: none;
+}
+
+.effects-slider::-moz-range-thumb:hover {
+  background: #f8fafc;
+  border-color: #16a34a;
+  box-shadow: 0 3px 10px rgba(34, 197, 94, 0.4);
+  transform: scale(1.1);
+}
+
+.effects-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+  background: #e2e8f0;
+  border-color: #15803d;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
+}
+
+.effects-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.effects-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  border-color: #6B7280;
+  transform: none;
+}
+
+.effects-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+  background: #9CA3AF;
+  border-color: #6B7280;
+  transform: none;
+}
+
 .glow-effect {
   position: relative;
 }

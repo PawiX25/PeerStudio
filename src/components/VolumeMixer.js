@@ -4,7 +4,6 @@ import * as Tone from 'tone';
 const VolumeSlider = ({ label, volume, onChange, isMuted, onMuteToggle, color = "bg-accent" }) => {
   return (
     <div className="flex flex-col items-center p-3 bg-bg-medium rounded-lg min-w-[120px]">
-      {/* Mute button and label */}
       <div className="flex flex-col items-center gap-2 mb-3">
         <button
           onClick={onMuteToggle}
@@ -24,7 +23,6 @@ const VolumeSlider = ({ label, volume, onChange, isMuted, onMuteToggle, color = 
         <span className="text-text-primary font-bold text-sm text-center">{label}</span>
       </div>
       
-      {/* Simple horizontal slider with progress fill */}
       <div className="w-full px-2">
         <input
           type="range"
@@ -42,7 +40,6 @@ const VolumeSlider = ({ label, volume, onChange, isMuted, onMuteToggle, color = 
         />
       </div>
       
-      {/* Volume percentage display */}
       <div className="mt-3 text-sm text-text-secondary text-center font-medium">
         {isMuted ? 'MUTED' : `${volume}%`}
       </div>
@@ -56,7 +53,6 @@ const VolumeMixer = ({ tracks }) => {
   const [trackVolumes, setTrackVolumes] = useState({});
   const [trackMutes, setTrackMutes] = useState({});
 
-  // Initialize track volumes
   useEffect(() => {
     tracks.forEach(track => {
       if (!trackVolumes[track.id]) {
@@ -66,14 +62,11 @@ const VolumeMixer = ({ tracks }) => {
     });
   }, [tracks, trackVolumes]);
 
-  // Apply master volume
   useEffect(() => {
     const masterGain = masterMuted ? 0 : masterVolume / 100;
     Tone.Destination.volume.value = Tone.gainToDb(masterGain);
   }, [masterVolume, masterMuted]);
 
-
-  // Apply individual track volumes
   useEffect(() => {
     tracks.forEach(track => {
       track.clips.forEach(clip => {
@@ -98,7 +91,6 @@ const VolumeMixer = ({ tracks }) => {
   return (
     <div className="bg-bg-dark p-4 rounded-lg h-full">
       <div className="flex gap-6 overflow-x-auto scrollbar-thin pb-2 h-full justify-center">
-        {/* Master Volume */}
         <VolumeSlider
           label="Master"
           volume={masterVolume}
@@ -108,7 +100,6 @@ const VolumeMixer = ({ tracks }) => {
           color="bg-red-500"
         />
         
-        {/* Individual Track Volumes */}
         {tracks.map(track => (
           <VolumeSlider
             key={track.id}

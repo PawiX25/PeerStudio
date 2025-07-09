@@ -14,17 +14,14 @@ const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, time
       setIsMusicPlaying(Tone.Transport.state === 'started');
     };
 
-    // Check initial state
     checkTransportState();
 
-    // Poll for transport state changes
     const interval = setInterval(checkTransportState, 200);
 
     return () => clearInterval(interval);
   }, []);
 
   const handleDragStart = (e) => {
-    // Prevent dragging during playback to avoid audio context conflicts
     if (isMusicPlaying) {
       e.preventDefault();
       return;
@@ -39,7 +36,6 @@ const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, time
     
     const rect = clipRef.current.getBoundingClientRect();
     cursorOffsetRef.current = e.clientX - rect.left;
-
 
     const clampedOffsetX = Math.max(0, Math.min(cursorOffsetRef.current, rect.width));
 
@@ -66,7 +62,6 @@ const Clip = ({ clip, onUpdate, trackId, onContextMenu, scrollContainerRef, time
     dragImage.style.height = `${rect.height}px`;
     document.body.appendChild(dragImage);
     dragImageRef.current = dragImage;
-
 
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setDragImage(dragImage, clampedOffsetX, rect.height / 2);

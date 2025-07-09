@@ -17,6 +17,9 @@ const Header = ({
   canRedo,
   onZoomChange,
   zoomLevel,
+  isMetronomeOn,
+  onMetronomeToggle,
+  time
 }) => {
   const [copied, setCopied] = useState(false);
   
@@ -41,6 +44,13 @@ const Header = ({
 
   const handleZoomIn = () => onZoomChange(prev => Math.min(4, prev * 1.25));
   const handleZoomOut = () => onZoomChange(prev => Math.max(0.25, prev * 0.8));
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 100);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  };
 
   return (
     <header className="bg-bg-medium h-16 flex items-center justify-between px-6 border-b border-bg-light">
@@ -85,7 +95,6 @@ const Header = ({
         </div>
       </div>
       <div className="flex items-center gap-4">
-        {/* Zoom Controls */}
         <div className="flex items-center gap-2">
           <button 
             onClick={handleZoomOut}
@@ -114,7 +123,6 @@ const Header = ({
           </button>
         </div>
         <div className="w-px h-8 bg-bg-light"></div>
-        {/* Undo/Redo buttons */}
         <div className="flex items-center gap-2">
           <button 
             onClick={onUndo} 
@@ -141,6 +149,23 @@ const Header = ({
             </svg>
           </button>
         </div>
+        <div className="w-px h-8 bg-bg-light"></div>
+        <div className="bg-bg-dark px-3 py-1 rounded-lg">
+          <span className="font-mono text-lg text-accent">{formatTime(time)}</span>
+        </div>
+        <div className="w-px h-8 bg-bg-light"></div>
+        <button
+          onClick={onMetronomeToggle}
+          className={`p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors ${
+            isMetronomeOn ? 'bg-accent text-bg-dark' : 'bg-bg-light hover:bg-accent text-text-primary'
+          }`}
+          title={isMetronomeOn ? 'Turn off metronome' : 'Turn on metronome'}
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 18a1 1 0 01-1-1V2a1 1 0 112 0v15a1 1 0 01-1 1z" />
+            <path d="M5.5 7.5L10 2l4.5 5.5L10 13l-4.5-5.5z" />
+          </svg>
+        </button>
         <div className="w-px h-8 bg-bg-light"></div>
         <button onClick={onPlay} className="bg-bg-light hover:bg-green-600 text-text-primary font-bold p-3 rounded-full w-12 h-12 flex items-center justify-center transition-colors">
           <div className="w-0 h-0 border-l-[20px] border-l-green-500 border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent ml-1"></div>

@@ -5,7 +5,7 @@ import * as Tone from 'tone';
 import ContextMenu from './ContextMenu';
 import Modal from './Modal';
 
-const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed, zoomLevel, onZoomChange, soloedTrackId, toggleSoloTrack, soloedClipId, toggleSoloClip }) => {
+const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, isSidebarCollapsed, zoomLevel, onZoomChange, selectedTrackId, onTrackSelect }) => {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [draggedTrackId, setDraggedTrackId] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -507,14 +507,17 @@ const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, is
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
+                  onClick={() => onTrackSelect && onTrackSelect(track.id)}
                   className={`transition-opacity ${
                     isMusicPlaying 
                       ? 'cursor-not-allowed opacity-75' 
                       : 'cursor-move'
                   } ${
                     draggedTrackId === track.id ? 'opacity-50' : 'opacity-100'
+                  } ${
+                    selectedTrackId === track.id ? 'ring-2 ring-accent rounded-lg' : ''
                   }`}
-                  title={isMusicPlaying ? 'Stop playback to reorder tracks' : 'Drag to reorder tracks'}
+                  title={isMusicPlaying ? 'Stop playback to reorder tracks' : 'Click to select track for effects'}
                 >
                   <Track
                     track={track}
@@ -526,9 +529,6 @@ const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, is
                     timelineWidth={timelineWidth}
                     setTimelineWidth={setTimelineWidth}
                     pixelsPerSecond={pixelsPerSecond}
-                    soloedTrackId={soloedTrackId}
-                    toggleSoloTrack={toggleSoloTrack}
-                    soloedClipId={soloedClipId}
                   />
                 </div>
               </div>
@@ -559,7 +559,7 @@ const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, is
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover"
+              className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-black"
             >
               Rename
             </button>
@@ -595,7 +595,6 @@ const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, is
           onAddTrack={contextMenu.type === 'timeline' ? onAddTrack : null}
           onRename={contextMenu.type === 'clip' ? handleRenameClip : null}
           onDelete={contextMenu.type === 'clip' ? handleDeleteClip : null}
-          onSolo={contextMenu.type === 'clip' ? () => toggleSoloClip(selectedClip.id) : null}
           onClose={closeContextMenu}
         />
       )}
