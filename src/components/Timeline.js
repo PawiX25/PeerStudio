@@ -488,7 +488,10 @@ const Timeline = ({ tracks, setTracks, onClipDrop, onAudioImport, onAddTrack, is
           }}
         >
           {tracks.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-text-secondary select-none">
+            <div 
+              className="flex items-center justify-center h-32 text-text-secondary select-none"
+              onContextMenu={(e) => showContextMenu(e, 'timeline')}
+            >
               <div className="text-center">
                 <p className="text-lg mb-2 select-none">No tracks yet</p>
                 <p className="text-sm select-none">Add a track from the sidebar or create clips using the instruments below</p>
