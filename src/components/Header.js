@@ -178,16 +178,19 @@ const Header = ({
         </button>
         <div className="w-px h-8 bg-bg-light"></div>
         <button onClick={onPlay} className="bg-bg-light hover:bg-green-600 text-text-primary font-bold p-3 rounded-full w-12 h-12 flex items-center justify-center transition-colors">
-          <div className="w-0 h-0 border-l-[20px] border-l-green-500 border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent ml-1"></div>
+          <svg className="w-6 h-6 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+          </svg>
         </button>
         <button onClick={onPause} className="bg-bg-light hover:bg-yellow-600 text-text-primary font-bold p-3 rounded-full w-12 h-12 flex items-center justify-center transition-colors">
-          <div className="flex gap-1">
-            <div className="w-1.5 h-6 bg-yellow-500 rounded-sm"></div>
-            <div className="w-1.5 h-6 bg-yellow-500 rounded-sm"></div>
-          </div>
+          <svg className="w-6 h-6 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M6 4.5A1.5 1.5 0 017.5 3h1A1.5 1.5 0 0110 4.5v11A1.5 1.5 0 018.5 17h-1A1.5 1.5 0 016 15.5v-11zM12.5 3A1.5 1.5 0 0011 4.5v11a1.5 1.5 0 001.5 1.5h1a1.5 1.5 0 001.5-1.5v-11A1.5 1.5 0 0013.5 3h-1z" clipRule="evenodd" />
+          </svg>
         </button>
         <button onClick={onStop} className="bg-bg-light hover:bg-gray-600 text-text-primary font-bold p-3 rounded-full w-12 h-12 flex items-center justify-center transition-colors">
-          <div className="w-5 h-5 bg-gray-400 rounded-sm"></div>
+          <svg className="w-5.5 h-5.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+            <rect x="3.5" y="3.5" width="13" height="13" rx="1" />
+          </svg>
         </button>
         <button
           onClick={onRecord}
@@ -195,7 +198,9 @@ const Header = ({
             isRecording ? 'bg-red-500 animate-pulse' : 'bg-bg-light hover:bg-red-700'
           }`}
         >
-          <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-bg-dark"></div>
+          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="7" className="text-red-500" />
+          </svg>
         </button>
       </div>
     </header>

@@ -690,16 +690,9 @@ code {
 
 @-moz-document url-prefix() {
   .bg-bg-dark.p-4.rounded-lg .bg-bg-light.hover\:bg-green-600 div {
-    border-left-width: 8px !important;
-    border-top-width: 4.6px !important;
-    border-bottom-width: 4.6px !important;
-    margin-left: 0.125rem !important;
-  }
-  
-  header .bg-bg-light.hover\:bg-green-600 div {
     border-left-width: 12px !important;
-    border-top-width: 8px !important;
-    border-bottom-width: 8px !important;
-    margin-left: 0.2rem !important;
+    border-top-width: 6px !important;
+    border-bottom-width: 6px !important;
+    margin-left: 0.125rem !important;
   }
 }
